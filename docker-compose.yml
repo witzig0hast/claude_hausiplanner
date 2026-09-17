@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: homework
+      POSTGRES_PASSWORD: homework
+      POSTGRES_DB: homework
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      HOMEWORK_DATABASE_URL: postgresql+psycopg://homework:homework@postgres:5432/homework
+      HOMEWORK_JWT_SECRET: ${JWT_SECRET:?set a random secret in .env}
+      HOMEWORK_OLLAMA_BASE_URL: http://host.docker.internal:11434
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  web:
+    build: ./apps/web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_URL:-https://homework-api.example-domain.de}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

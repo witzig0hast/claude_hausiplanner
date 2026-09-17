@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Hausiplanner",
+    "slug": "hausiplanner",
+    "scheme": "hausiplanner",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1115"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "de.hastnetwork.hausiplanner",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "de.hastnetwork.hausiplanner",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f1115"
+      },
+      "permissions": ["NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#3b82f6"
+        }
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "https://homework.example-domain.de"
+    }
+  }
+}
