@@ -21,6 +21,7 @@ export type User = {
   display_name: string;
   is_class_admin: boolean;
   school_class_id: string | null;
+  agent_tone: "locker" | "streng";
 };
 
 function authHeaders(token: string): HeadersInit {
@@ -144,6 +145,47 @@ export type CalendarEvent = {
 export async function fetchCalendarEvents(token: string): Promise<CalendarEvent[]> {
   const res = await fetch(`${API_BASE}/calendar`, { headers: authHeaders(token) });
   return handle<CalendarEvent[]>(res);
+}
+
+export type Workload = {
+  level: "green" | "yellow" | "red";
+  minutes_needed: number;
+  minutes_available: number;
+  message: string;
+};
+
+export async function fetchWorkload(token: string): Promise<Workload> {
+  const res = await fetch(`${API_BASE}/agent/workload`, { headers: authHeaders(token) });
+  return handle<Workload>(res);
+}
+
+export async function chatWithAgent(token: string, question: string): Promise<{ answer: string }> {
+  const res = await fetch(`${API_BASE}/agent/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ question }),
+  });
+  return handle<{ answer: string }>(res);
+}
+
+export type Flashcard = { question: string; answer: string };
+
+export async function generateFlashcards(token: string, text: string): Promise<{ cards: Flashcard[] }> {
+  const res = await fetch(`${API_BASE}/agent/flashcards`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ text }),
+  });
+  return handle<{ cards: Flashcard[] }>(res);
+}
+
+export async function setAgentTone(token: string, tone: "locker" | "streng"): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/tone`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ tone }),
+  });
+  return handle<User>(res);
 }
 
 export async function registerPushToken(token: string, expoPushToken: string, platform: "ios" | "android") {

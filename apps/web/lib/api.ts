@@ -19,6 +19,7 @@ export type User = {
   display_name: string;
   is_class_admin: boolean;
   school_class_id: string | null;
+  agent_tone: "locker" | "streng";
 };
 
 function authHeaders(token: string | null): HeadersInit {
@@ -155,4 +156,58 @@ export async function createCalendarEvent(
 export async function deleteCalendarEvent(token: string, eventId: string) {
   const res = await fetch(`${API_BASE}/calendar/${eventId}`, { method: "DELETE", headers: authHeaders(token) });
   if (!res.ok) throw new Error("Konnte Termin nicht löschen");
+}
+
+export type Workload = {
+  level: "green" | "yellow" | "red";
+  minutes_needed: number;
+  minutes_available: number;
+  message: string;
+};
+
+export async function fetchWorkload(token: string): Promise<Workload> {
+  const res = await fetch(`${API_BASE}/agent/workload`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Workload nicht laden");
+  return res.json();
+}
+
+export async function fetchAgentSummary(token: string): Promise<{ summary: string }> {
+  const res = await fetch(`${API_BASE}/agent/summary`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Zusammenfassung nicht laden");
+  return res.json();
+}
+
+export async function chatWithAgent(token: string, question: string): Promise<{ answer: string }> {
+  const res = await fetch(`${API_BASE}/agent/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ question }),
+  });
+  if (!res.ok) throw new Error("Konnte Frage nicht stellen");
+  return res.json();
+}
+
+export async function setAgentTone(token: string, tone: "locker" | "streng"): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/tone`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ tone }),
+  });
+  if (!res.ok) throw new Error("Konnte Tonfall nicht ändern");
+  return res.json();
+}
+
+export type Flashcard = { question: string; answer: string };
+
+export async function generateFlashcards(token: string, text: string): Promise<{ cards: Flashcard[] }> {
+  const res = await fetch(`${API_BASE}/agent/flashcards`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    if (res.status === 503) throw new Error("KI-Agent (Ollama) ist gerade nicht erreichbar.");
+    throw new Error("Konnte Karteikarten nicht erstellen");
+  }
+  return res.json();
 }

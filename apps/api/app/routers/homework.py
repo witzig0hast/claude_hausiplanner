@@ -11,7 +11,7 @@ from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.homework import HomeworkCreate, HomeworkOut
 from app.schemas.vision import HomeworkSuggestion
-from app.services.vision_agent import extract_homework_from_image
+from app.services.vision_agent import VisionUnavailableError, extract_homework_from_image
 
 router = APIRouter(tags=["homework"])
 
@@ -74,7 +74,10 @@ async def extract_from_image(
     subject_names = [
         s.name for s in db.query(Subject).filter(Subject.school_class_id == user.school_class_id).all()
     ]
-    suggestion = await extract_homework_from_image(image_bytes, subject_names)
+    try:
+        suggestion = await extract_homework_from_image(image_bytes, subject_names)
+    except VisionUnavailableError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
     return HomeworkSuggestion(**suggestion)
 
 

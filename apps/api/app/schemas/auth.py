@@ -25,9 +25,14 @@ class UserOut(BaseModel):
     display_name: str
     is_class_admin: bool
     school_class_id: uuid.UUID | None
+    agent_tone: str
 
     class Config:
         from_attributes = True
+
+
+class SetAgentToneRequest(BaseModel):
+    tone: str  # "locker" | "streng"
 
 
 class TokenResponse(BaseModel):

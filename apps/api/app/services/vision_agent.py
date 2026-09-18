@@ -35,20 +35,29 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
+class VisionUnavailableError(Exception):
+    """Ollama (or the configured vision model) could not be reached."""
+
+
 async def _call_vision_model(image_bytes: bytes, prompt: str) -> str:
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-    async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=120.0) as client:
-        response = await client.post(
-            "/api/generate",
-            json={
-                "model": settings.ollama_vision_model,
-                "prompt": prompt,
-                "images": [image_b64],
-                "stream": False,
-            },
-        )
-        response.raise_for_status()
-        return response.json().get("response", "").strip()
+    try:
+        async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=120.0) as client:
+            response = await client.post(
+                "/api/generate",
+                json={
+                    "model": settings.ollama_vision_model,
+                    "prompt": prompt,
+                    "images": [image_b64],
+                    "stream": False,
+                },
+            )
+            response.raise_for_status()
+            return response.json().get("response", "").strip()
+    except httpx.HTTPError as exc:
+        raise VisionUnavailableError(
+            f"Ollama ({settings.ollama_base_url}, Modell '{settings.ollama_vision_model}') nicht erreichbar"
+        ) from exc
 
 
 async def extract_homework_from_image(image_bytes: bytes, known_subjects: list[str]) -> dict:

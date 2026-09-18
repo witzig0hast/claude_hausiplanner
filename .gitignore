@@ -15,6 +15,7 @@ dist/
 *.p8
 *.p12
 *.key
+*.pem
 *.mobileprovision
 
 # OS
@@ -22,3 +23,4 @@ dist/
 
 # tests
 apps/api/tests/*.db
+tsconfig.tsbuildinfo

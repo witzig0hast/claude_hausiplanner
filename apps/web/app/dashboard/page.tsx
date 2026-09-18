@@ -11,6 +11,7 @@ import {
   toggleComplete,
   User,
 } from "../../lib/api";
+import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
   return new Date(due).toLocaleString("de-DE", {
@@ -98,10 +99,13 @@ export default function DashboardPage() {
       <div className="top-bar">
         <h1>Hey {user.display_name}</h1>
         <div className="row">
+          <a href="/flashcards"><button className="secondary">Karteikarten</button></a>
           <a href="/settings"><button className="secondary">Einstellungen</button></a>
           <button className="secondary" onClick={logout}>Ausloggen</button>
         </div>
       </div>
+
+      {token && <AgentPanel token={token} />}
 
       {subjects.length === 0 && (
         <p style={{ color: "var(--muted)" }}>

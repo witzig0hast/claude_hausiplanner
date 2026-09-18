@@ -1,6 +1,6 @@
-import * as SecureStore from "expo-secure-store";
 import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "./api";
+import { deleteItem, getItem, setItem } from "./storage";
 
 type AuthState = {
   token: string | null;
@@ -19,8 +19,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const storedToken = await SecureStore.getItemAsync("token");
-      const storedUser = await SecureStore.getItemAsync("user");
+      const storedToken = await getItem("token");
+      const storedUser = await getItem("user");
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
@@ -30,15 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function setSession(newToken: string, newUser: User) {
-    await SecureStore.setItemAsync("token", newToken);
-    await SecureStore.setItemAsync("user", JSON.stringify(newUser));
+    await setItem("token", newToken);
+    await setItem("user", JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
   }
 
   async function clearSession() {
-    await SecureStore.deleteItemAsync("token");
-    await SecureStore.deleteItemAsync("user");
+    await deleteItem("token");
+    await deleteItem("user");
     setToken(null);
     setUser(null);
   }

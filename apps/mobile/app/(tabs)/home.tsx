@@ -1,8 +1,11 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { fetchAgentSummary, fetchMyHomework, Homework, toggleComplete } from "../../lib/api";
+import { fetchAgentSummary, fetchMyHomework, fetchWorkload, Homework, toggleComplete, Workload } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+
+const LEVEL_COLOR: Record<Workload["level"], string> = { green: "#22c55e", yellow: "#f59e0b", red: "#ef4444" };
+const LEVEL_LABEL: Record<Workload["level"], string> = { green: "Entspannt", yellow: "Machbar", red: "Eng" };
 
 function formatDue(due: string) {
   return new Date(due).toLocaleString("de-DE", {
@@ -18,6 +21,7 @@ export default function HomeScreen() {
   const { token } = useAuth();
   const [items, setItems] = useState<Homework[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
+  const [workload, setWorkload] = useState<Workload | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -25,6 +29,7 @@ export default function HomeScreen() {
     const hw = await fetchMyHomework(token);
     setItems(hw);
     fetchAgentSummary(token).then((s) => setSummary(s.summary)).catch(() => {});
+    fetchWorkload(token).then(setWorkload).catch(() => {});
   }, [token]);
 
   useFocusEffect(
@@ -47,6 +52,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      {workload && (
+        <View style={styles.workloadRow}>
+          <View style={[styles.dot, { backgroundColor: LEVEL_COLOR[workload.level] }]} />
+          <Text style={styles.workloadLabel}>{LEVEL_LABEL[workload.level]}</Text>
+          <Text style={styles.workloadMessage}> · {workload.message}</Text>
+        </View>
+      )}
       {summary && (
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Dein Assistent meint</Text>
@@ -81,6 +93,10 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0f1115" },
+  workloadRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", margin: 16, marginBottom: 0 },
+  dot: { width: 10, height: 10, borderRadius: 999, marginRight: 8 },
+  workloadLabel: { color: "#f2f3f5", fontWeight: "700" },
+  workloadMessage: { color: "#9aa0aa" },
   summaryCard: { margin: 16, marginBottom: 0, backgroundColor: "#171a21", borderRadius: 14, padding: 16 },
   summaryLabel: { color: "#9aa0aa", fontSize: 12, marginBottom: 4, textTransform: "uppercase" },
   summaryText: { color: "#f2f3f5", fontSize: 15, lineHeight: 21 },

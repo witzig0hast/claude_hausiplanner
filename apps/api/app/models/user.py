@@ -15,6 +15,7 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(120))
     password_hash: Mapped[str] = mapped_column(String(255))
     is_class_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_tone: Mapped[str] = mapped_column(String(16), default="locker")  # "locker" | "streng"
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID | None] = mapped_column(

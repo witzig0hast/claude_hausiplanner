@@ -9,7 +9,7 @@ from app.models.calendar_event import CalendarEvent
 from app.models.user import User
 from app.schemas.calendar_event import CalendarEventCreate, CalendarEventOut
 from app.schemas.vision import TimetableSuggestion
-from app.services.vision_agent import extract_timetable_from_image
+from app.services.vision_agent import VisionUnavailableError, extract_timetable_from_image
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -40,7 +40,10 @@ async def extract_timetable(
     if len(image_bytes) > MAX_IMAGE_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Bild zu groß (max. 8MB)")
 
-    suggestion = await extract_timetable_from_image(image_bytes)
+    try:
+        suggestion = await extract_timetable_from_image(image_bytes)
+    except VisionUnavailableError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
     return TimetableSuggestion(**suggestion)
 
 

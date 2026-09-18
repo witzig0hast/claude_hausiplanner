@@ -14,6 +14,7 @@ import {
   fetchCalendarEvents,
   fetchInvite,
   fetchMySubjects,
+  setAgentTone,
 } from "../../lib/api";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
@@ -104,6 +105,13 @@ export default function SettingsPage() {
     refresh();
   }
 
+  async function handleSetTone(tone: "locker" | "streng") {
+    if (!token) return;
+    const updated = await setAgentTone(token, tone);
+    setUser(updated);
+    localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+  }
+
   async function handleAddEvent(e: React.FormEvent) {
     e.preventDefault();
     if (!token || !eventTitle) return;
@@ -178,6 +186,27 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <div className="card">
+        <h3>Tonfall des KI-Agenten</h3>
+        <p style={{ color: "var(--muted)", marginBottom: 10 }}>
+          Wie soll dich die Zusammenfassung/der Chat ansprechen?
+        </p>
+        <div className="row">
+          <button
+            className={user.agent_tone === "locker" ? "" : "secondary"}
+            onClick={() => handleSetTone("locker")}
+          >
+            Locker
+          </button>
+          <button
+            className={user.agent_tone === "streng" ? "" : "secondary"}
+            onClick={() => handleSetTone("streng")}
+          >
+            Streng
+          </button>
+        </div>
+      </div>
 
       {user.is_class_admin ? (
         <>

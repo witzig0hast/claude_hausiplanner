@@ -22,7 +22,13 @@ class SchoolClass(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    members: Mapped[list["User"]] = relationship(back_populates="school_class")
-    subjects: Mapped[list["Subject"]] = relationship(back_populates="school_class")
-    homework_items: Mapped[list["Homework"]] = relationship(back_populates="school_class")
-    calendar_events: Mapped[list["CalendarEvent"]] = relationship(back_populates="school_class")
+    # cascade: deleting a class (e.g. via the hidden superadmin surface) removes
+    # everything that only makes sense within it - including its members.
+    members: Mapped[list["User"]] = relationship(back_populates="school_class", cascade="all, delete-orphan")
+    subjects: Mapped[list["Subject"]] = relationship(back_populates="school_class", cascade="all, delete-orphan")
+    homework_items: Mapped[list["Homework"]] = relationship(
+        back_populates="school_class", cascade="all, delete-orphan"
+    )
+    calendar_events: Mapped[list["CalendarEvent"]] = relationship(
+        back_populates="school_class", cascade="all, delete-orphan"
+    )

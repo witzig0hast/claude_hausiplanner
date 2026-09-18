@@ -3,6 +3,22 @@
 Hausaufgaben-Planer mit Klassen-Sharing, KI-Zusammenfassung (Ollama) und sanften Push-Erinnerungen.
 Self-hosted auf deinem eigenen Server, erreichbar über deine Domain.
 
+## Was du am Ende betreiben musst (Übersicht)
+
+Fünf Dienste, die dauerhaft laufen müssen, plus zwei einmalige Einrichtungsschritte:
+
+| Dienst | Was er tut | Wo er läuft |
+|---|---|---|
+| **Postgres** | Datenbank | Docker-Container (in `docker-compose.yml`) |
+| **API** (FastAPI) | Backend, das Web + Mobile ansprechen | Docker-Container |
+| **Web** (Next.js) | Die Website (öffentliche Ansicht + Login) | Docker-Container |
+| **Ollama** | KI-Modelle lokal (Zusammenfassung, Chat, Foto-Erkennung) | Direkt auf deinem Host (kein Container nötig, muss aber laufen: `ollama serve`) |
+| **Reverse Proxy** (Caddy/Traefik) | HTTPS-Zertifikat + Domain-Routing zu Web/API | Auf deinem Host, vor allem anderen |
+
+Einmalig: **Domain + DNS** auf deinen Server zeigen lassen, und den **Superadmin-Schlüssel**
+erzeugen (siehe unten). Danach läuft alles automatisch weiter - die Mobile-Apps und die
+Web-UI reden nur noch mit deiner API-Domain.
+
 ## Struktur
 
 ```
@@ -71,6 +87,15 @@ Download-Link zu einer `.apk`-Datei. Die lädst du aufs Handy (z.B. per Link, US
 Cloud-Speicher), tippst sie an und erlaubst einmalig "Installation aus unbekannten
 Quellen" - fertig, kein Play Store nötig. `eas.json` hat dafür schon das Profil
 `android-apk` (baut eine `.apk` statt eines Play-Store-`.aab`).
+
+**Getestet:** Ich habe versucht, die APK direkt in dieser Entwicklungsumgebung lokal zu
+bauen (`expo prebuild` + Gradle, ganz ohne Expo-Account) - das native Android-Projekt
+generiert sich einwandfrei, aber der eigentliche Build scheitert hier daran, dass diese
+Sandbox den Zugriff auf `dl.google.com` (Googles Maven-Repo, von dem das Android-Gradle-Plugin
+kommt) aus Sicherheitsgründen blockiert. Das ist eine Einschränkung dieser Entwicklungsumgebung,
+keine deines Rechners: auf deinem eigenen PC/Mac/Linux-Server mit normalem Internetzugang
+funktioniert `./gradlew assembleDebug` im generierten `android/`-Ordner, und `eas build`
+(läuft ohnehin auf Expos eigenen Servern, nicht bei dir) ist davon komplett unberührt.
 
 ### Sideload bei iOS/iPadOS: AltStore PAL (EU, kostenlos)
 
@@ -142,6 +167,57 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f�
   Ollama-Vision-Modell (Standard: `llava`, per `HOMEWORK_OLLAMA_VISION_MODEL` änderbar)
   schicken; liefert einen Vorschlag (Fach/Titel/Deadline), erstellt aber nichts automatisch
 - `POST /calendar/extract-from-image` (nur Admin) - gleiche Idee für den Stundenplan
+- `POST /agent/chat` - freie Frage an den Agenten, mit Kontext aus offenen Hausaufgaben +
+  Kalender (z.B. "Wie viel Zeit brauche ich noch für Mathe?")
+- `GET /agent/workload` - Ampel (grün/gelb/rot), wie viel Zeit die fälligen Hausaufgaben
+  der nächsten 48h im Verhältnis zur tatsächlich freien Zeit brauchen
+- `POST /agent/flashcards` - erzeugt aus eingefügtem Lernstoff-Text 5-8 Karteikarten (Frage/Antwort)
+- `PUT /auth/me/tone` - Tonfall des Agenten umstellen (`"locker"` oder `"streng"`)
+
+Alle KI-Endpoints (`summary`, `chat`, `workload`, `flashcards`, Foto-Erkennung) sind so gebaut,
+dass ein nicht erreichbares Ollama nie zu einem Server-Absturz führt: `summary`/`chat` fallen
+auf eine reine Auflistung zurück, die anderen liefern einen sauberen `503`.
+
+## Der versteckte Superadmin-Zugang
+
+Du wolltest einen Account, der klassenübergreifend alles sehen/löschen kann, aber komplett
+unsichtbar für normale Nutzer ist - technisch so gelöst:
+
+- Es ist **kein** normaler `User` - eine eigene Tabelle (`super_admins`), die nirgendwo in
+  Klassen, Mitgliederlisten oder API-Antworten auftaucht.
+- **Kein Passwort.** Authentifizierung über ein Ed25519-Schlüsselpaar (asymmetrische
+  Kryptografie, das Prinzip hinter Client-Zertifikaten): Server schickt eine zufällige,
+  einmal gültige Zahl ("Challenge"), du signierst sie mit deinem privaten Schlüssel, der
+  nie den eigenen Rechner verlässt. Passt die Signatur zum hinterlegten öffentlichen
+  Schlüssel, gibt's ein 15 Minuten gültiges Token mit eigenem Signier-Geheimnis (komplett
+  getrennt vom normalen Nutzer-Login - ein geleaktes Nutzer-Secret hilft dort nichts).
+- Die Routen liegen alle unter `/__sys/...` und sind mit `include_in_schema=False` aus der
+  Swagger-Doku (`/docs`) ausgeblendet. Jede Ablehnung (falsches Signatur, falscher Token,
+  unbekannte Route) antwortet mit `404`, nicht `401`/`403` - ein Angreifer bekommt nicht
+  mal bestätigt, dass es diesen Bereich überhaupt gibt.
+- Jede Challenge ist genau einmal verwendbar (Replay-Schutz), unabhängig vom Ergebnis.
+
+**Einmalige Einrichtung**, direkt auf deinem Server, niemals über HTTP:
+
+```bash
+cd apps/api
+python -m scripts.create_superadmin "DeinName"
+```
+
+Das legt den öffentlichen Schlüssel in der Datenbank ab und schreibt den privaten Schlüssel
+in eine lokale `.pem`-Datei. **Diese Datei sofort sicher verwahren** (Passwortmanager, offline
+USB-Stick) **und danach vom Server löschen** - wer sie hat, hat vollen Zugriff auf alles.
+
+**Benutzung** (von deinem eigenen Rechner aus, mit der verwahrten `.pem`-Datei):
+
+```bash
+python -m scripts.superadmin_login ./superadmin_DeinName_private.pem https://homework-api.deinedomain.de
+```
+
+Gibt dir ein Token und eine Systemübersicht (Anzahl Klassen/Nutzer/Hausaufgaben). Mit dem
+Token dann z.B. `curl -H "Authorization: Bearer <token>" .../__sys/users` für die volle
+Nutzerliste über alle Klassen hinweg, oder `.../__sys/classes`, `.../__sys/homework` -
+jeweils mit `DELETE` auf die `{id}`-Route zum Entfernen.
 
 ## Noch offen / nächste Schritte
 
@@ -149,3 +225,20 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f�
 - Web-Push für Desktop-Browser (aktuell nur native Mobile-Push via Expo)
 - App Store/Play Store Signierung & Veröffentlichung erfordert deinen eigenen
   Apple- und Google-Play-Developer-Account (`eas build`/`eas submit`)
+- Nicht umgesetzt (bewusst außerhalb des Kern-KI-Funktionsumfangs): Gamification/Streaks,
+  Mitschüler-Vergleich, Siri-Shortcuts, Web-Push für Desktop
+
+## Was durchgetestet wurde
+
+Vor dem letzten Commit lief das komplette System einmal echt durch (nicht nur die
+automatisierten Tests): Backend live gestartet und per curl durch jeden Flow geklickt
+(Registrierung, Klassenbeitritt, Hausaufgaben, Kalender, Planung, Workload, Chat,
+Flashcards, Foto-Erkennung, kompletter Superadmin-Login inkl. Replay-Schutz-Check),
+die Next.js-Web-UI mit einem echten Browser (Playwright) durch Registrierung → Dashboard
+→ Chat → Karteikarten → Einstellungen → öffentliche Ansicht geklickt, und die Mobile-App
+testweise im Browser (`expo start --web`) ebenso durchgeklickt - dabei kam ein echter Bug
+zum Vorschein und wurde gefixt (`expo-secure-store` hat kein Web-Backend und crashte die
+App im Browser; `lib/storage.ts` fällt jetzt auf `localStorage` zurück, wenn `Platform.OS
+=== "web"` - für den eigentlichen Einsatz auf iOS/Android ändert das nichts, dort lief es
+schon vorher über den nativen sicheren Speicher). 20 Backend-Pytests, TypeScript-Checks
+für Web und Mobile sowie der Next.js-Produktionsbuild laufen alle grün.

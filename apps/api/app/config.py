@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 14
+
+    # Deliberately separate secret/algorithm from normal user auth, so a leaked
+    # user JWT secret can never be used to forge superadmin access (or vice versa).
+    superadmin_jwt_secret: str = "change-me-too-in-production"
+    superadmin_token_expire_minutes: int = 15
+    superadmin_challenge_expire_seconds: int = 120
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
     ollama_vision_model: str = "llava"

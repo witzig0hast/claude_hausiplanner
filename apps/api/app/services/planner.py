@@ -82,6 +82,55 @@ def _free_slots_for_range(busy: list[Interval], range_start: date, range_end: da
     return [f for f in free if (f.end - f.start) >= timedelta(minutes=10)]
 
 
+def compute_workload(db: Session, user: User, hours_ahead: int = 48) -> dict:
+    """Rot/Gelb/Grün: wie viel Zeit brauchen die bald fälligen Hausaufgaben im
+    Verhältnis zur tatsächlich freien Zeit in diesem Fenster."""
+    now = datetime.utcnow()
+    window_end = now + timedelta(hours=hours_ahead)
+    range_start = now.date()
+    range_end = window_end.date()
+
+    events = db.query(CalendarEvent).filter(CalendarEvent.school_class_id == user.school_class_id).all()
+    busy = _merge(_expand_calendar_events(events, range_start, range_end))
+    free_slots = _free_slots_for_range(busy, range_start, range_end)
+    minutes_available = int(
+        sum((min(s.end, window_end) - max(s.start, now)).total_seconds() for s in free_slots if s.end > now)
+        // 60
+    )
+    minutes_available = max(0, minutes_available)
+
+    homework = (
+        db.query(Homework)
+        .options(joinedload(Homework.completions))
+        .filter(
+            Homework.school_class_id == user.school_class_id,
+            Homework.due_at >= now,
+            Homework.due_at <= window_end,
+        )
+        .all()
+    )
+    open_items = [hw for hw in homework if not any(c.user_id == user.id for c in hw.completions)]
+    minutes_needed = sum(hw.estimated_minutes or DEFAULT_ESTIMATE_MINUTES for hw in open_items)
+
+    if minutes_needed == 0:
+        level, message = "green", "Nichts Dringendes in den nächsten 48 Stunden - entspann dich."
+    elif minutes_available == 0:
+        level, message = "red", "Keine freie Zeit gefunden, aber Hausaufgaben stehen an - eng."
+    elif minutes_needed <= minutes_available * 0.5:
+        level, message = "green", "Locker machbar mit der freien Zeit, die du hast."
+    elif minutes_needed <= minutes_available:
+        level, message = "yellow", "Geht sich aus, aber nicht auf die lange Bank schieben."
+    else:
+        level, message = "red", "Knapp - mehr Zeit nötig als frei ist. Am besten sofort anfangen."
+
+    return {
+        "level": level,
+        "minutes_needed": minutes_needed,
+        "minutes_available": minutes_available,
+        "message": message,
+    }
+
+
 def build_plan(db: Session, user: User, days_ahead: int = 7):
     now = datetime.utcnow()
     range_start = now.date()

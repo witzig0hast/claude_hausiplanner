@@ -1,7 +1,11 @@
+import base64
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -29,3 +33,32 @@ def decode_access_token(token: str) -> uuid.UUID | None:
         return uuid.UUID(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None
+
+
+def create_superadmin_token(admin_id: uuid.UUID) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.superadmin_token_expire_minutes)
+    payload = {"sub": str(admin_id), "role": "superadmin", "exp": expire}
+    return jwt.encode(payload, settings.superadmin_jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_superadmin_token(token: str) -> uuid.UUID | None:
+    try:
+        payload = jwt.decode(token, settings.superadmin_jwt_secret, algorithms=[settings.jwt_algorithm])
+        if payload.get("role") != "superadmin":
+            return None
+        return uuid.UUID(payload["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        return None
+
+
+def verify_challenge_signature(public_key_pem: str, nonce_b64: str, signature_b64: str) -> bool:
+    """Verifies an Ed25519 signature over a login nonce - the private key that
+    produced it never leaves the user's machine."""
+    try:
+        public_key = load_pem_public_key(public_key_pem.encode("utf-8"))
+        if not isinstance(public_key, Ed25519PublicKey):
+            return False
+        public_key.verify(base64.b64decode(signature_b64), base64.b64decode(nonce_b64))
+        return True
+    except (InvalidSignature, ValueError, TypeError):
+        return False

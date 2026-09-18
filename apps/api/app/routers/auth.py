@@ -6,7 +6,14 @@ from app.deps import get_current_user
 from app.models.school_class import SchoolClass
 from app.models.subject import Subject
 from app.models.user import User
-from app.schemas.auth import JoinClassRequest, LoginRequest, RegisterRequest, TokenResponse, UserOut
+from app.schemas.auth import (
+    JoinClassRequest,
+    LoginRequest,
+    RegisterRequest,
+    SetAgentToneRequest,
+    TokenResponse,
+    UserOut,
+)
 from app.security import create_access_token, hash_password, verify_password
 from app.services.defaults import DEFAULT_SUBJECTS
 
@@ -75,4 +82,18 @@ def join_class(
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
+    return user
+
+
+@router.put("/me/tone", response_model=UserOut)
+def set_agent_tone(
+    payload: SetAgentToneRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if payload.tone not in ("locker", "streng"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "tone must be 'locker' or 'streng'")
+    user.agent_tone = payload.tone
+    db.commit()
+    db.refresh(user)
     return user
