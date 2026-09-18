@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
 from app.models.subject import Subject
 from app.models.user import User
-from app.schemas.school_class import SchoolClassOut, SubjectCreate, SubjectOut
+from app.schemas.school_class import ClassInviteOut, SchoolClassOut, SubjectCreate, SubjectOut
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
@@ -13,6 +14,18 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 @router.get("/me", response_model=SchoolClassOut)
 def my_class(user: User = Depends(require_class_member)):
     return user.school_class
+
+
+@router.get("/me/invite", response_model=ClassInviteOut)
+def my_class_invite(user: User = Depends(require_class_member)):
+    """Sharelink für Mitschüler: der Invite-Code zum Registrieren + der öffentliche
+    Lese-Link ohne Login."""
+    code = user.school_class.invite_code
+    return ClassInviteOut(
+        invite_code=code,
+        join_url=f"{settings.web_base_url}/login?invite={code}",
+        public_view_url=f"{settings.web_base_url}/class/{user.school_class_id}",
+    )
 
 
 @router.get("/me/subjects", response_model=list[SubjectOut])
@@ -23,7 +36,7 @@ def list_subjects(user: User = Depends(require_class_member), db: Session = Depe
 @router.post("/me/subjects", response_model=SubjectOut)
 def create_subject(
     payload: SubjectCreate,
-    user: User = Depends(require_class_member),
+    user: User = Depends(require_class_admin),
     db: Session = Depends(get_db),
 ):
     subject = Subject(**payload.model_dump(), school_class_id=user.school_class_id)

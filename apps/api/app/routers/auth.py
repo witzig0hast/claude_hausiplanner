@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.school_class import SchoolClass
+from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.auth import JoinClassRequest, LoginRequest, RegisterRequest, TokenResponse, UserOut
 from app.security import create_access_token, hash_password, verify_password
+from app.services.defaults import DEFAULT_SUBJECTS
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,6 +30,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         db.add(school_class)
         db.flush()
         is_admin = True
+        for name, color, icon in DEFAULT_SUBJECTS:
+            db.add(Subject(name=name, color=color, icon=icon, school_class_id=school_class.id))
 
     user = User(
         email=payload.email,

@@ -32,3 +32,9 @@ class SubjectOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ClassInviteOut(BaseModel):
+    invite_code: str
+    join_url: str
+    public_view_url: str

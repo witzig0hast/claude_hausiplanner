@@ -89,3 +89,70 @@ export async function fetchMySubjects(token: string): Promise<Subject[]> {
   if (!res.ok) throw new Error("Konnte Fächer nicht laden");
   return res.json();
 }
+
+export async function createSubject(token: string, payload: { name: string; color: string; icon?: string }) {
+  const res = await fetch(`${API_BASE}/classes/me/subjects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ icon: "book", ...payload }),
+  });
+  if (!res.ok) throw new Error("Konnte Fach nicht erstellen (nur Admin)");
+  return res.json();
+}
+
+export async function deleteSubject(token: string, subjectId: string) {
+  const res = await fetch(`${API_BASE}/classes/me/subjects/${subjectId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Konnte Fach nicht löschen");
+}
+
+export type ClassInvite = { invite_code: string; join_url: string; public_view_url: string };
+
+export async function fetchInvite(token: string): Promise<ClassInvite> {
+  const res = await fetch(`${API_BASE}/classes/me/invite`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Einladung nicht laden");
+  return res.json();
+}
+
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  is_recurring_weekly: boolean;
+  weekday: number | null;
+  subject_id: string | null;
+};
+
+export async function fetchCalendarEvents(token: string): Promise<CalendarEvent[]> {
+  const res = await fetch(`${API_BASE}/calendar`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Kalender nicht laden");
+  return res.json();
+}
+
+export async function createCalendarEvent(
+  token: string,
+  payload: {
+    title: string;
+    starts_at: string;
+    ends_at: string;
+    is_recurring_weekly: boolean;
+    weekday: number | null;
+    subject_id?: string | null;
+  }
+) {
+  const res = await fetch(`${API_BASE}/calendar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Konnte Termin nicht erstellen (nur Admin)");
+  return res.json();
+}
+
+export async function deleteCalendarEvent(token: string, eventId: string) {
+  const res = await fetch(`${API_BASE}/calendar/${eventId}`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Termin nicht löschen");
+}

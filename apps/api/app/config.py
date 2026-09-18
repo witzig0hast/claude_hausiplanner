@@ -8,8 +8,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 14
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
+    ollama_vision_model: str = "llava"
     expo_access_token: str | None = None
     digest_hour_local: int = 19  # daily digest push, 24h local time
+    web_base_url: str = "http://localhost:3000"
 
     class Config:
         env_prefix = "HOMEWORK_"

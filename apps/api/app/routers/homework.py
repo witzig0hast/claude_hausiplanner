@@ -1,16 +1,21 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.deps import require_class_member
 from app.models.homework import Homework, HomeworkCompletion
 from app.models.school_class import SchoolClass
+from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.homework import HomeworkCreate, HomeworkOut
+from app.schemas.vision import HomeworkSuggestion
+from app.services.vision_agent import extract_homework_from_image
 
 router = APIRouter(tags=["homework"])
+
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 def _serialize(hw: Homework, viewer_id: uuid.UUID | None) -> HomeworkOut:
@@ -49,6 +54,28 @@ def list_homework(
         .all()
     )
     return [_serialize(hw, viewer_id=user.id) for hw in items]
+
+
+@router.post("/homework/extract-from-image", response_model=HomeworkSuggestion)
+async def extract_from_image(
+    file: UploadFile = File(...),
+    user: User = Depends(require_class_member),
+    db: Session = Depends(get_db),
+):
+    """Foto der Tafel/des Aufgabenblatts -> Vorschlag für Fach/Titel/Deadline.
+    Erstellt NICHTS automatisch - der Nutzer bestätigt/bearbeitet den Vorschlag im Add-Formular."""
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/heic"):
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Nur Bilddateien werden unterstützt")
+
+    image_bytes = await file.read()
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Bild zu groß (max. 8MB)")
+
+    subject_names = [
+        s.name for s in db.query(Subject).filter(Subject.school_class_id == user.school_class_id).all()
+    ]
+    suggestion = await extract_homework_from_image(image_bytes, subject_names)
+    return HomeworkSuggestion(**suggestion)
 
 
 @router.post("/homework", response_model=HomeworkOut)

@@ -97,7 +97,10 @@ export default function DashboardPage() {
     <div>
       <div className="top-bar">
         <h1>Hey {user.display_name}</h1>
-        <button className="secondary" onClick={logout}>Ausloggen</button>
+        <div className="row">
+          <a href="/settings"><button className="secondary">Einstellungen</button></a>
+          <button className="secondary" onClick={logout}>Ausloggen</button>
+        </div>
       </div>
 
       {subjects.length === 0 && (

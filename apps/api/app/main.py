@@ -3,14 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine
-from app.routers import agent, auth, calendar, classes, homework
+from app.routers import agent, auth, calendar, classes, homework, planning
 from app.services.scheduler import start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Schema is managed by Alembic migrations (see alembic/), run via
+    # `alembic upgrade head` before starting the app - not here.
     scheduler = start_scheduler()
     yield
     scheduler.shutdown()
@@ -30,6 +30,7 @@ app.include_router(classes.router)
 app.include_router(homework.router)
 app.include_router(calendar.router)
 app.include_router(agent.router)
+app.include_router(planning.router)
 
 
 @app.get("/health")

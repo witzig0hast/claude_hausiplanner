@@ -19,7 +19,15 @@ cd apps/api
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # Secrets anpassen
+alembic upgrade head   # Datenbankschema anlegen/aktualisieren
 uvicorn app.main:app --reload
+```
+
+Schemaänderungen an den Modellen (`app/models/`) landen als neue Migration:
+
+```bash
+alembic revision --autogenerate -m "kurze beschreibung"
+alembic upgrade head
 ```
 
 Läuft auf http://localhost:8000, Swagger-Doku unter `/docs`.
@@ -45,7 +53,27 @@ npx expo start
 
 Dann mit Expo Go auf iPhone/iPad/Android scannen, oder `npm run ios` / `npm run android`
 für den Simulator/Emulator. `extra.apiBaseUrl` in `app.json` auf deine echte Domain setzen,
-bevor du einen Standalone-Build (`eas build`) für den App Store / Play Store machst.
+bevor du einen Standalone-Build machst.
+
+### Store-Build (App Store / Play Store)
+
+Dafür brauchst du deinen eigenen Apple-Developer-Account (99$/Jahr) und einen
+Google-Play-Console-Account (einmalig 25$) - das kann ich nicht für dich einrichten.
+Sobald du die hast:
+
+```bash
+npm install -g eas-cli
+eas login
+eas init                 # verknüpft das Projekt mit deinem Expo-Account, schreibt projectId in app.json
+eas build --platform ios --profile production
+eas build --platform android --profile production
+eas submit --platform ios
+eas submit --platform android
+```
+
+`eas.json` (Build-Profile: development/preview/production) liegt schon bereit.
+Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken -
+für den Store solltest du die durch echtes Design ersetzen.
 
 ## Deployment auf deinem Heimserver
 
@@ -71,10 +99,19 @@ bevor du einen Standalone-Build (`eas build`) für den App Store / Play Store ma
   nicht erledigter Hausaufgabe genau eine ruhige Push-Nachricht (keine Eskalation, kein Alarm)
   sowie täglich einen von Ollama zusammengefassten Abend-Digest.
 
+## Weitere Endpoints
+
+- `GET /classes/me/invite` - Sharelink + Invite-Code für Mitschüler
+- `GET /planning?days_ahead=7` - freie Zeitfenster zwischen Kalendereinträgen +
+  Vorschlag, wann welche offene Hausaufgabe reinpasst (früheste Deadline zuerst)
+- `POST /homework/extract-from-image` - Foto der Tafel/eines Aufgabenblatts an ein
+  Ollama-Vision-Modell (Standard: `llava`, per `HOMEWORK_OLLAMA_VISION_MODEL` änderbar)
+  schicken; liefert einen Vorschlag (Fach/Titel/Deadline), erstellt aber nichts automatisch
+- `POST /calendar/extract-from-image` (nur Admin) - gleiche Idee für den Stundenplan
+
 ## Noch offen / nächste Schritte
 
-- Freie-Zeit-Finder gegen den Admin-Kalender (Vorschläge für Lernzeiten)
-- Foto-Upload + KI-Erkennung für Hausaufgabenzettel/Stundenplan
-- App-Icons/Splash-Assets, EAS-Build-Konfiguration für App Store/Play Store
+- App-Icons/Splash-Assets sind aktuell Platzhalter - für den Store durch echtes Design ersetzen
 - Web-Push für Desktop-Browser (aktuell nur native Mobile-Push via Expo)
-- Migrations mit Alembic statt `create_all` für produktive Datenbank-Änderungen
+- App Store/Play Store Signierung & Veröffentlichung erfordert deinen eigenen
+  Apple- und Google-Play-Developer-Account (`eas build`/`eas submit`)

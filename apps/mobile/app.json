@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "de.hastnetwork.hausiplanner",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "NSCameraUsageDescription": "Wird genutzt, um Hausaufgabenzettel und den Stundenplan zu fotografieren.",
+        "NSPhotoLibraryUsageDescription": "Wird genutzt, um ein Foto einer Hausaufgabe aus deiner Fotomediathek auszuwählen."
       }
     },
     "android": {
@@ -25,7 +27,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f1115"
       },
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": ["NOTIFICATIONS", "CAMERA"]
     },
     "plugins": [
       "expo-router",
@@ -34,6 +36,12 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#3b82f6"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Wird genutzt, um Hausaufgabenzettel und den Stundenplan zu fotografieren."
         }
       ]
     ],
