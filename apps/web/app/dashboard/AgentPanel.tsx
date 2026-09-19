@@ -34,7 +34,7 @@ export default function AgentPanel({ token }: { token: string }) {
       const res = await chatWithAgent(token, q);
       setMessages((m) => [...m, { role: "agent", text: res.answer }]);
     } catch {
-      setMessages((m) => [...m, { role: "agent", text: "Konnte den Agenten nicht erreichen." }]);
+      setMessages((m) => [...m, { role: "agent", text: "Der Agent konnte nicht erreicht werden." }]);
     } finally {
       setAsking(false);
     }
@@ -43,21 +43,11 @@ export default function AgentPanel({ token }: { token: string }) {
   return (
     <div className="card hero">
       <div className="workload-row">
-        {workload && (
-          <span className={`pill ${workload.level}`}>
-            <span className="pill-dot" style={{ background: "currentColor" }} />
-            {LEVEL_LABEL[workload.level]}
-          </span>
-        )}
+        {workload && <span className={`pill ${workload.level}`}>{LEVEL_LABEL[workload.level]}</span>}
         {workload && <span className="muted" style={{ fontSize: 14 }}>{workload.message}</span>}
       </div>
 
-      {summary && (
-        <div className="row" style={{ alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 20 }}>🤖</span>
-          <p className="muted" style={{ margin: 0 }}>{summary}</p>
-        </div>
-      )}
+      {summary && <p className="muted" style={{ marginBottom: 14 }}>{summary}</p>}
 
       {messages.length > 0 && (
         <div className="chat-log">
@@ -69,12 +59,12 @@ export default function AgentPanel({ token }: { token: string }) {
 
       <form onSubmit={ask} className="row">
         <input
-          placeholder="Frag den Agenten, z.B. 'Wie viel Zeit brauche ich noch für Mathe?'"
+          placeholder="Frage an den Agenten, z.B. „Wie viel Zeit brauche ich noch für Mathe?“"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           style={{ marginBottom: 0 }}
         />
-        <button type="submit" disabled={asking}>{asking ? "…" : "Senden"}</button>
+        <button type="submit" disabled={asking}>{asking ? "..." : "Senden"}</button>
       </form>
     </div>
   );

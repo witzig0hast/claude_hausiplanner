@@ -12,7 +12,6 @@ import {
   User,
 } from "../../lib/api";
 import { Logo } from "../../components/Logo";
-import { subjectEmoji } from "../../lib/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -62,7 +61,7 @@ export default function DashboardPage() {
       setSubjects(subj);
       if (subj.length > 0 && !subjectId) setSubjectId(subj[0].id);
     } catch {
-      setError("Konnte Daten nicht laden.");
+      setError("Daten konnten nicht geladen werden.");
     }
   }
 
@@ -103,16 +102,16 @@ export default function DashboardPage() {
       <div className="nav-bar">
         <Logo href="/dashboard" />
         <div className="row">
-          <a href="/flashcards"><button className="ghost">🃏 Karteikarten</button></a>
-          <a href="/settings"><button className="ghost">⚙️ Einstellungen</button></a>
-          <button className="ghost" onClick={logout}>Ausloggen</button>
+          <a href="/flashcards"><button className="ghost">Karteikarten</button></a>
+          <a href="/settings"><button className="ghost">Einstellungen</button></a>
+          <button className="ghost" onClick={logout}>Abmelden</button>
         </div>
       </div>
 
       <div style={{ marginBottom: 4 }}>
-        <h1>Hey {user.display_name} 👋</h1>
+        <h1>{user.display_name}</h1>
         <p className="subtitle">
-          {openCount === 0 ? "Alles erledigt - nichts steht mehr offen." : `${openCount} offene Hausaufgabe${openCount === 1 ? "" : "n"}`}
+          {openCount === 0 ? "Keine offenen Hausaufgaben." : `${openCount} offene Hausaufgabe${openCount === 1 ? "" : "n"}.`}
         </p>
       </div>
 
@@ -120,12 +119,12 @@ export default function DashboardPage() {
 
       {subjects.length === 0 && (
         <div className="card warn">
-          <strong>Noch keine Fächer angelegt.</strong>{" "}
-          <span className="muted">{user.is_class_admin ? "Leg welche in den Einstellungen an." : "Bitte den Admin, Fächer anzulegen."}</span>
+          <strong>Keine Fächer angelegt.</strong>{" "}
+          <span className="muted">{user.is_class_admin ? "Fächer werden in den Einstellungen verwaltet." : "Der Klassen-Admin muss zunächst Fächer anlegen."}</span>
         </div>
       )}
 
-      <button onClick={() => setShowForm(!showForm)}>{showForm ? "Abbrechen" : "＋ Hausaufgabe hinzufügen"}</button>
+      <button onClick={() => setShowForm(!showForm)}>{showForm ? "Abbrechen" : "Hausaufgabe hinzufügen"}</button>
 
       {showForm && (
         <form onSubmit={handleCreate} className="card" style={{ marginTop: 14 }}>
@@ -133,14 +132,14 @@ export default function DashboardPage() {
           <input placeholder="z.B. Seite 42, Aufgabe 3" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
 
           <label className="field-label">Beschreibung (optional)</label>
-          <textarea placeholder="Details..." value={description} onChange={(e) => setDescription(e.target.value)} />
+          <textarea placeholder="Details" value={description} onChange={(e) => setDescription(e.target.value)} />
 
           <div className="row wrap" style={{ alignItems: "flex-start" }}>
             <div style={{ flex: 1, minWidth: 160 }}>
               <label className="field-label">Fach</label>
               <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} required>
                 {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{subjectEmoji(s.icon)} {s.name}</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -153,37 +152,30 @@ export default function DashboardPage() {
         </form>
       )}
 
-      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
+      {error && <p style={{ color: "#f19999" }}>{error}</p>}
 
       <div style={{ marginTop: 24 }}>
         {items.length === 0 && !showForm && (
-          <div className="empty-state">
-            <span className="emoji">🎉</span>
-            Nichts offen. Zeit für eine Pause.
-          </div>
+          <div className="empty-state">Keine Hausaufgaben vorhanden.</div>
         )}
         {items.map((hw) => (
           <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <span className="subject-tag">
-                  <span className="subject-dot" style={{ background: hw.subject.color, color: hw.subject.color }} />
-                  {subjectEmoji(hw.subject.icon)} {hw.subject.name}
-                </span>
-                <h3>{hw.title}</h3>
-                {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
-                <p className="due">
-                  🕐 {formatDue(hw.due_at)}
-                  {hw.completed_count > 0 && <span className="faint">· {hw.completed_count} Mitschüler erledigt</span>}
-                </p>
-              </div>
-            </div>
+            <span className="subject-tag">
+              <span className="subject-dot" style={{ background: hw.subject.color }} />
+              {hw.subject.name}
+            </span>
+            <h3>{hw.title}</h3>
+            {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
+            <p className="due">
+              Fällig {formatDue(hw.due_at)}
+              {hw.completed_count > 0 && <span> · {hw.completed_count} Mitschüler erledigt</span>}
+            </p>
             <button
               className={hw.completed_by_me ? "secondary" : ""}
               style={{ marginTop: 14, width: "100%" }}
               onClick={() => handleToggle(hw)}
             >
-              {hw.completed_by_me ? "↺ Als offen markieren" : "✓ Als erledigt markieren"}
+              {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren"}
             </button>
           </div>
         ))}

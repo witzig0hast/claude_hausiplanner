@@ -33,7 +33,7 @@ export default function FlashcardsPage() {
     try {
       const res = await generateFlashcards(token, text);
       setCards(res.cards);
-      if (res.cards.length === 0) setError("Der Agent konnte daraus keine Karteikarten erstellen.");
+      if (res.cards.length === 0) setError("Aus dem eingefügten Text konnten keine Karten erstellt werden.");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -47,29 +47,29 @@ export default function FlashcardsPage() {
     <div>
       <div className="nav-bar">
         <Logo href="/dashboard" />
-        <a href="/dashboard"><button className="ghost">← Zurück</button></a>
+        <a href="/dashboard"><button className="ghost">Zurück</button></a>
       </div>
 
-      <h1>Karteikarten 🃏</h1>
-      <p className="subtitle">Lernstoff einfügen, der Agent macht daraus Frage-Antwort-Karten zum Üben.</p>
+      <h1>Karteikarten</h1>
+      <p className="subtitle">Lernstoff einfügen - der Agent erstellt daraus Frage-Antwort-Karten.</p>
 
       <form onSubmit={handleGenerate} className="card">
         <textarea
-          placeholder="z.B. aus deinem Heft oder Buch abtippen..."
+          placeholder="Text aus Heft oder Buch einfügen"
           value={text}
           onChange={(e) => setText(e.target.value)}
           style={{ height: 140 }}
         />
         <button type="submit" disabled={busy} style={{ width: "100%" }}>
-          {busy ? "✨ Erstellt Karteikarten..." : "Karteikarten erstellen"}
+          {busy ? "Wird erstellt..." : "Karteikarten erstellen"}
         </button>
       </form>
 
-      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
+      {error && <p style={{ color: "#f19999" }}>{error}</p>}
 
       {cards.length > 0 && (
         <>
-          <p className="section-title">{cards.length} Karte{cards.length === 1 ? "" : "n"} · zum Umdrehen klicken</p>
+          <p className="section-title">{cards.length} Karte{cards.length === 1 ? "" : "n"} - zum Umdrehen anklicken</p>
           <div className="stack">
             {cards.map((card, i) => (
               <div
@@ -79,12 +79,12 @@ export default function FlashcardsPage() {
               >
                 <div className="flip-card-inner">
                   <div className="flip-card-face front">
-                    <div className="flip-card-label">❓ Frage</div>
-                    <div className="flip-card-text">{card.question}</div>
+                    <div className="flip-card-label">Frage</div>
+                    <p className="flip-card-text">{card.question}</p>
                   </div>
                   <div className="flip-card-face back">
-                    <div className="flip-card-label">💡 Antwort</div>
-                    <div className="flip-card-text">{card.answer}</div>
+                    <div className="flip-card-label">Antwort</div>
+                    <p className="flip-card-text">{card.answer}</p>
                   </div>
                 </div>
               </div>

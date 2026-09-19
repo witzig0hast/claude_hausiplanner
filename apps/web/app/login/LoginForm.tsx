@@ -89,13 +89,13 @@ export default function LoginForm() {
         )}
 
         {error && (
-          <p style={{ color: "#fda4af", background: "rgba(244,63,94,0.1)", padding: "10px 14px", borderRadius: 10, fontSize: 14 }}>
+          <p style={{ color: "#f19999", background: "var(--red-bg)", border: "1px solid #4d2323", padding: "10px 14px", borderRadius: 6, fontSize: 13.5 }}>
             {error}
           </p>
         )}
 
         <button type="submit" style={{ width: "100%", marginTop: 4 }} disabled={busy}>
-          {busy ? "Einen Moment..." : mode === "login" ? "Einloggen" : "Konto erstellen"}
+          {busy ? "Wird verarbeitet..." : mode === "login" ? "Einloggen" : "Konto erstellen"}
         </button>
       </form>
     </div>

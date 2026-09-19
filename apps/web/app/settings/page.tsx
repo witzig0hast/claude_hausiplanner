@@ -17,7 +17,6 @@ import {
   setAgentTone,
 } from "../../lib/api";
 import { Logo } from "../../components/Logo";
-import { subjectEmoji } from "../../lib/icons";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
@@ -160,7 +159,7 @@ export default function SettingsPage() {
     <div>
       <div className="nav-bar">
         <Logo href="/dashboard" />
-        <a href="/dashboard"><button className="ghost">← Zurück</button></a>
+        <a href="/dashboard"><button className="ghost">Zurück</button></a>
       </div>
 
       <h1 style={{ marginBottom: 24 }}>Einstellungen</h1>
@@ -169,14 +168,14 @@ export default function SettingsPage() {
 
       {invite && (
         <div className="card hero">
-          <h3>🔗 Klasse teilen</h3>
+          <h3>Klasse teilen</h3>
           <p className="muted" style={{ marginBottom: 8 }}>
-            Öffentliche Ansicht (kein Login nötig) - was ansteht, sehen alle mit diesem Link:
+            Öffentliche Ansicht ohne Login - zeigt allen mit diesem Link die offenen Hausaufgaben:
           </p>
           <div className="copy-row">
             <input readOnly value={invite.public_view_url} />
             <button className="secondary" onClick={() => copy(invite.public_view_url, "public")}>
-              {copied === "public" ? "✓ Kopiert" : "Kopieren"}
+              {copied === "public" ? "Kopiert" : "Kopieren"}
             </button>
           </div>
           <p className="muted" style={{ marginTop: 16, marginBottom: 8 }}>
@@ -185,16 +184,16 @@ export default function SettingsPage() {
           <div className="copy-row">
             <input readOnly value={invite.invite_code} />
             <button className="secondary" onClick={() => copy(invite.invite_code, "code")}>
-              {copied === "code" ? "✓ Kopiert" : "Kopieren"}
+              {copied === "code" ? "Kopiert" : "Kopieren"}
             </button>
           </div>
         </div>
       )}
 
       <div className="card">
-        <h3 style={{ marginBottom: 4 }}>🎭 Tonfall des KI-Agenten</h3>
+        <h3 style={{ marginBottom: 4 }}>Tonfall des Agenten</h3>
         <p className="muted" style={{ marginBottom: 14 }}>
-          Wie soll dich die Zusammenfassung/der Chat ansprechen?
+          Bestimmt den Stil von Zusammenfassung und Chat-Antworten.
         </p>
         <div className="toggle-group">
           <button
@@ -202,14 +201,14 @@ export default function SettingsPage() {
             className={user.agent_tone === "locker" ? "active" : ""}
             onClick={() => handleSetTone("locker")}
           >
-            😎 Locker
+            Locker
           </button>
           <button
             type="button"
             className={user.agent_tone === "streng" ? "active" : ""}
             onClick={() => handleSetTone("streng")}
           >
-            🧐 Streng
+            Sachlich
           </button>
         </div>
       </div>
@@ -219,7 +218,7 @@ export default function SettingsPage() {
           <p className="section-title">Admin-Bereich</p>
 
           <div className="card">
-            <h3 style={{ marginBottom: 14 }}>📚 Fächer verwalten</h3>
+            <h3 style={{ marginBottom: 14 }}>Fächer verwalten</h3>
             <form onSubmit={handleAddSubject} className="row" style={{ marginBottom: 16 }}>
               <input placeholder="Neues Fach" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} style={{ marginBottom: 0 }} />
               <input
@@ -228,14 +227,14 @@ export default function SettingsPage() {
                 onChange={(e) => setSubjectColor(e.target.value)}
                 style={{ width: 48, padding: 3, marginBottom: 0, flexShrink: 0 }}
               />
-              <button type="submit" style={{ flexShrink: 0 }}>＋</button>
+              <button type="submit" style={{ flexShrink: 0 }}>Hinzufügen</button>
             </form>
             <div className="stack">
               {subjects.map((s) => (
                 <div key={s.id} className="row" style={{ justifyContent: "space-between" }}>
                   <span className="subject-tag" style={{ marginBottom: 0 }}>
-                    <span className="subject-dot" style={{ background: s.color, color: s.color }} />
-                    {subjectEmoji(s.icon)} {s.name}
+                    <span className="subject-dot" style={{ background: s.color }} />
+                    {s.name}
                   </span>
                   <button className="ghost" onClick={() => handleDeleteSubject(s.id)}>Löschen</button>
                 </div>
@@ -244,7 +243,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="card">
-            <h3 style={{ marginBottom: 4 }}>🗓️ Stundenplan / Kalender</h3>
+            <h3 style={{ marginBottom: 4 }}>Stundenplan / Kalender</h3>
             <p className="muted" style={{ marginBottom: 16 }}>
               Da die WebUntis-API der Schule gesperrt ist, pflegst du den Stundenplan hier manuell.
             </p>
