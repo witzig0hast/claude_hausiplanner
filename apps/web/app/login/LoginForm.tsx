@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Logo } from "../../components/Logo";
 import { login, register } from "../../lib/api";
 
 export default function LoginForm() {
@@ -14,6 +15,7 @@ export default function LoginForm() {
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState(inviteFromLink ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (inviteFromLink) {
@@ -25,6 +27,7 @@ export default function LoginForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setBusy(true);
     try {
       const data =
         mode === "login"
@@ -35,42 +38,66 @@ export default function LoginForm() {
       router.push("/dashboard");
     } catch (err) {
       setError(mode === "login" ? "E-Mail oder Passwort falsch." : "Registrierung fehlgeschlagen.");
+      setBusy(false);
     }
   }
 
   return (
-    <div>
-      <h1>{mode === "login" ? "Einloggen" : "Konto erstellen"}</h1>
+    <div style={{ maxWidth: 420, margin: "0 auto", paddingTop: 40 }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
+        <Logo href="/" />
+      </div>
+
+      <div className="toggle-group" style={{ display: "flex", width: "100%", marginBottom: 24 }}>
+        <button
+          type="button"
+          className={mode === "login" ? "active" : ""}
+          style={{ flex: 1 }}
+          onClick={() => setMode("login")}
+        >
+          Einloggen
+        </button>
+        <button
+          type="button"
+          className={mode === "register" ? "active" : ""}
+          style={{ flex: 1 }}
+          onClick={() => setMode("register")}
+        >
+          Registrieren
+        </button>
+      </div>
+
       <form onSubmit={submit} className="card">
-        <input placeholder="E-Mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input
-          placeholder="Passwort"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <label className="field-label">E-Mail</label>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+
+        <label className="field-label">Passwort</label>
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+
         {mode === "register" && (
           <>
+            <label className="field-label">Dein Name</label>
+            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
+
+            <label className="field-label">Einladungscode (optional)</label>
             <input
-              placeholder="Dein Name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-            />
-            <input
-              placeholder="Einladungscode deiner Klasse (leer = neue Klasse als Admin anlegen)"
+              placeholder="Leer lassen = neue Klasse als Admin anlegen"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
             />
           </>
         )}
-        {error && <p style={{ color: "#f87171" }}>{error}</p>}
-        <button type="submit">{mode === "login" ? "Einloggen" : "Registrieren"}</button>
+
+        {error && (
+          <p style={{ color: "#fda4af", background: "rgba(244,63,94,0.1)", padding: "10px 14px", borderRadius: 10, fontSize: 14 }}>
+            {error}
+          </p>
+        )}
+
+        <button type="submit" style={{ width: "100%", marginTop: 4 }} disabled={busy}>
+          {busy ? "Einen Moment..." : mode === "login" ? "Einloggen" : "Konto erstellen"}
+        </button>
       </form>
-      <button className="secondary" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-        {mode === "login" ? "Noch kein Konto? Registrieren" : "Schon ein Konto? Einloggen"}
-      </button>
     </div>
   );
 }

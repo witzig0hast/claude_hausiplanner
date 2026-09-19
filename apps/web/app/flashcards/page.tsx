@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Flashcard, generateFlashcards } from "../../lib/api";
+import { Logo } from "../../components/Logo";
 
 export default function FlashcardsPage() {
   const router = useRouter();
@@ -44,36 +45,53 @@ export default function FlashcardsPage() {
 
   return (
     <div>
-      <div className="top-bar">
-        <h1>Karteikarten</h1>
-        <a href="/dashboard"><button className="secondary">Zurück</button></a>
+      <div className="nav-bar">
+        <Logo href="/dashboard" />
+        <a href="/dashboard"><button className="ghost">← Zurück</button></a>
       </div>
+
+      <h1>Karteikarten 🃏</h1>
+      <p className="subtitle">Lernstoff einfügen, der Agent macht daraus Frage-Antwort-Karten zum Üben.</p>
 
       <form onSubmit={handleGenerate} className="card">
         <textarea
-          placeholder="Lernstoff einfügen, z.B. aus deinem Heft oder Buch..."
+          placeholder="z.B. aus deinem Heft oder Buch abtippen..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           style={{ height: 140 }}
         />
-        <button type="submit" disabled={busy}>{busy ? "Erstellt Karteikarten..." : "Karteikarten erstellen"}</button>
+        <button type="submit" disabled={busy} style={{ width: "100%" }}>
+          {busy ? "✨ Erstellt Karteikarten..." : "Karteikarten erstellen"}
+        </button>
       </form>
 
-      {error && <p style={{ color: "#f87171" }}>{error}</p>}
+      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
 
-      {cards.map((card, i) => (
-        <div
-          key={i}
-          className="card"
-          style={{ cursor: "pointer" }}
-          onClick={() => setFlipped((f) => ({ ...f, [i]: !f[i] }))}
-        >
-          <p style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>
-            {flipped[i] ? "ANTWORT (klicken zum Umdrehen)" : "FRAGE (klicken zum Umdrehen)"}
-          </p>
-          <p style={{ fontSize: 16 }}>{flipped[i] ? card.answer : card.question}</p>
-        </div>
-      ))}
+      {cards.length > 0 && (
+        <>
+          <p className="section-title">{cards.length} Karte{cards.length === 1 ? "" : "n"} · zum Umdrehen klicken</p>
+          <div className="stack">
+            {cards.map((card, i) => (
+              <div
+                key={i}
+                className={`flip-card ${flipped[i] ? "flipped" : ""}`}
+                onClick={() => setFlipped((f) => ({ ...f, [i]: !f[i] }))}
+              >
+                <div className="flip-card-inner">
+                  <div className="flip-card-face front">
+                    <div className="flip-card-label">❓ Frage</div>
+                    <div className="flip-card-text">{card.question}</div>
+                  </div>
+                  <div className="flip-card-face back">
+                    <div className="flip-card-label">💡 Antwort</div>
+                    <div className="flip-card-text">{card.answer}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -16,6 +16,8 @@ import {
   fetchMySubjects,
   setAgentTone,
 } from "../../lib/api";
+import { Logo } from "../../components/Logo";
+import { subjectEmoji } from "../../lib/icons";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
@@ -24,9 +26,9 @@ function formatEventTime(ev: CalendarEvent) {
   const end = new Date(ev.ends_at);
   const time = (d: Date) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   if (ev.is_recurring_weekly && ev.weekday !== null) {
-    return `${WEEKDAYS[ev.weekday]}, ${time(start)}–${time(end)} (wöchentlich)`;
+    return `${WEEKDAYS[ev.weekday]} · ${time(start)}–${time(end)}`;
   }
-  return `${start.toLocaleDateString("de-DE")}, ${time(start)}–${time(end)}`;
+  return `${start.toLocaleDateString("de-DE")} · ${time(start)}–${time(end)}`;
 }
 
 export default function SettingsPage() {
@@ -156,96 +158,109 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div className="top-bar">
-        <h1>Einstellungen</h1>
-        <a href="/dashboard"><button className="secondary">Zurück</button></a>
+      <div className="nav-bar">
+        <Logo href="/dashboard" />
+        <a href="/dashboard"><button className="ghost">← Zurück</button></a>
       </div>
 
-      {error && <p style={{ color: "#f87171" }}>{error}</p>}
+      <h1 style={{ marginBottom: 24 }}>Einstellungen</h1>
+
+      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
 
       {invite && (
-        <div className="card">
-          <h3>Klasse teilen</h3>
-          <p style={{ color: "var(--muted)" }}>
+        <div className="card hero">
+          <h3>🔗 Klasse teilen</h3>
+          <p className="muted" style={{ marginBottom: 8 }}>
             Öffentliche Ansicht (kein Login nötig) - was ansteht, sehen alle mit diesem Link:
           </p>
-          <div className="row">
+          <div className="copy-row">
             <input readOnly value={invite.public_view_url} />
             <button className="secondary" onClick={() => copy(invite.public_view_url, "public")}>
-              {copied === "public" ? "Kopiert!" : "Kopieren"}
+              {copied === "public" ? "✓ Kopiert" : "Kopieren"}
             </button>
           </div>
-          <p style={{ color: "var(--muted)", marginTop: 12 }}>
+          <p className="muted" style={{ marginTop: 16, marginBottom: 8 }}>
             Einladungscode zum Registrieren mit eigenem Konto (zum Hinzufügen/Abhaken):
           </p>
-          <div className="row">
+          <div className="copy-row">
             <input readOnly value={invite.invite_code} />
             <button className="secondary" onClick={() => copy(invite.invite_code, "code")}>
-              {copied === "code" ? "Kopiert!" : "Kopieren"}
+              {copied === "code" ? "✓ Kopiert" : "Kopieren"}
             </button>
           </div>
         </div>
       )}
 
       <div className="card">
-        <h3>Tonfall des KI-Agenten</h3>
-        <p style={{ color: "var(--muted)", marginBottom: 10 }}>
+        <h3 style={{ marginBottom: 4 }}>🎭 Tonfall des KI-Agenten</h3>
+        <p className="muted" style={{ marginBottom: 14 }}>
           Wie soll dich die Zusammenfassung/der Chat ansprechen?
         </p>
-        <div className="row">
+        <div className="toggle-group">
           <button
-            className={user.agent_tone === "locker" ? "" : "secondary"}
+            type="button"
+            className={user.agent_tone === "locker" ? "active" : ""}
             onClick={() => handleSetTone("locker")}
           >
-            Locker
+            😎 Locker
           </button>
           <button
-            className={user.agent_tone === "streng" ? "" : "secondary"}
+            type="button"
+            className={user.agent_tone === "streng" ? "active" : ""}
             onClick={() => handleSetTone("streng")}
           >
-            Streng
+            🧐 Streng
           </button>
         </div>
       </div>
 
       {user.is_class_admin ? (
         <>
+          <p className="section-title">Admin-Bereich</p>
+
           <div className="card">
-            <h3>Fächer verwalten</h3>
-            <form onSubmit={handleAddSubject} className="row" style={{ marginBottom: 12 }}>
-              <input placeholder="Neues Fach" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
+            <h3 style={{ marginBottom: 14 }}>📚 Fächer verwalten</h3>
+            <form onSubmit={handleAddSubject} className="row" style={{ marginBottom: 16 }}>
+              <input placeholder="Neues Fach" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} style={{ marginBottom: 0 }} />
               <input
                 type="color"
                 value={subjectColor}
                 onChange={(e) => setSubjectColor(e.target.value)}
-                style={{ width: 48, padding: 2 }}
+                style={{ width: 48, padding: 3, marginBottom: 0, flexShrink: 0 }}
               />
-              <button type="submit">+</button>
+              <button type="submit" style={{ flexShrink: 0 }}>＋</button>
             </form>
-            {subjects.map((s) => (
-              <div key={s.id} className="row" style={{ marginBottom: 6 }}>
-                <span className="subject-tag" style={{ background: s.color, color: "#0f1115" }}>{s.name}</span>
-                <button className="secondary" onClick={() => handleDeleteSubject(s.id)}>Löschen</button>
-              </div>
-            ))}
+            <div className="stack">
+              {subjects.map((s) => (
+                <div key={s.id} className="row" style={{ justifyContent: "space-between" }}>
+                  <span className="subject-tag" style={{ marginBottom: 0 }}>
+                    <span className="subject-dot" style={{ background: s.color, color: s.color }} />
+                    {subjectEmoji(s.icon)} {s.name}
+                  </span>
+                  <button className="ghost" onClick={() => handleDeleteSubject(s.id)}>Löschen</button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="card">
-            <h3>Stundenplan / Kalender</h3>
-            <p style={{ color: "var(--muted)" }}>
+            <h3 style={{ marginBottom: 4 }}>🗓️ Stundenplan / Kalender</h3>
+            <p className="muted" style={{ marginBottom: 16 }}>
               Da die WebUntis-API der Schule gesperrt ist, pflegst du den Stundenplan hier manuell.
             </p>
             <form onSubmit={handleAddEvent}>
-              <input placeholder="Titel (z.B. Mathe)" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
-              <label className="row" style={{ marginBottom: 10 }}>
+              <label className="field-label">Titel</label>
+              <input placeholder="z.B. Mathe" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
+
+              <label className="row" style={{ marginBottom: 14, cursor: "pointer" }}>
                 <input
                   type="checkbox"
-                  style={{ width: "auto" }}
                   checked={eventRecurring}
                   onChange={(e) => setEventRecurring(e.target.checked)}
                 />
-                Wöchentlich wiederkehrend (normale Unterrichtsstunde)
+                <span style={{ fontSize: 14 }}>Wöchentlich wiederkehrend (normale Unterrichtsstunde)</span>
               </label>
+
               {eventRecurring ? (
                 <select value={eventWeekday} onChange={(e) => setEventWeekday(Number(e.target.value))}>
                   {WEEKDAYS.map((w, i) => (
@@ -264,19 +279,19 @@ export default function SettingsPage() {
           </div>
 
           <div className="card">
-            {events.length === 0 && <p style={{ color: "var(--muted)" }}>Noch keine Termine.</p>}
-            {events.map((ev) => (
-              <div key={ev.id} className="row" style={{ marginBottom: 6 }}>
-                <span style={{ flex: 1 }}>{ev.title} · {formatEventTime(ev)}</span>
-                <button className="secondary" onClick={() => handleDeleteEvent(ev.id)}>Löschen</button>
-              </div>
-            ))}
+            {events.length === 0 && <p className="muted">Noch keine Termine.</p>}
+            <div className="stack">
+              {events.map((ev) => (
+                <div key={ev.id} className="row" style={{ justifyContent: "space-between" }}>
+                  <span>{ev.title} <span className="faint">· {formatEventTime(ev)}</span></span>
+                  <button className="ghost" onClick={() => handleDeleteEvent(ev.id)}>Löschen</button>
+                </div>
+              ))}
+            </div>
           </div>
         </>
       ) : (
-        <p style={{ color: "var(--muted)" }}>
-          Fächer und Kalender werden vom Klassen-Admin gepflegt.
-        </p>
+        <p className="muted">Fächer und Kalender werden vom Klassen-Admin gepflegt.</p>
       )}
     </div>
   );

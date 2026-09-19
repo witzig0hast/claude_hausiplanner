@@ -11,6 +11,8 @@ import {
   toggleComplete,
   User,
 } from "../../lib/api";
+import { Logo } from "../../components/Logo";
+import { subjectEmoji } from "../../lib/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -94,54 +96,94 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
+  const openCount = items.filter((i) => !i.completed_by_me).length;
+
   return (
     <div>
-      <div className="top-bar">
-        <h1>Hey {user.display_name}</h1>
+      <div className="nav-bar">
+        <Logo href="/dashboard" />
         <div className="row">
-          <a href="/flashcards"><button className="secondary">Karteikarten</button></a>
-          <a href="/settings"><button className="secondary">Einstellungen</button></a>
-          <button className="secondary" onClick={logout}>Ausloggen</button>
+          <a href="/flashcards"><button className="ghost">🃏 Karteikarten</button></a>
+          <a href="/settings"><button className="ghost">⚙️ Einstellungen</button></a>
+          <button className="ghost" onClick={logout}>Ausloggen</button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 4 }}>
+        <h1>Hey {user.display_name} 👋</h1>
+        <p className="subtitle">
+          {openCount === 0 ? "Alles erledigt - nichts steht mehr offen." : `${openCount} offene Hausaufgabe${openCount === 1 ? "" : "n"}`}
+        </p>
       </div>
 
       {token && <AgentPanel token={token} />}
 
       {subjects.length === 0 && (
-        <p style={{ color: "var(--muted)" }}>
-          Noch keine Fächer angelegt. {user.is_class_admin ? "Lege welche über die API/App an." : "Bitte den Admin, Fächer anzulegen."}
-        </p>
+        <div className="card warn">
+          <strong>Noch keine Fächer angelegt.</strong>{" "}
+          <span className="muted">{user.is_class_admin ? "Leg welche in den Einstellungen an." : "Bitte den Admin, Fächer anzulegen."}</span>
+        </div>
       )}
 
-      <button onClick={() => setShowForm(!showForm)}>{showForm ? "Abbrechen" : "+ Hausaufgabe hinzufügen"}</button>
+      <button onClick={() => setShowForm(!showForm)}>{showForm ? "Abbrechen" : "＋ Hausaufgabe hinzufügen"}</button>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="card" style={{ marginTop: 12 }}>
-          <input placeholder="Titel" value={title} onChange={(e) => setTitle(e.target.value)} required />
-          <textarea placeholder="Beschreibung (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} required>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required />
+        <form onSubmit={handleCreate} className="card" style={{ marginTop: 14 }}>
+          <label className="field-label">Titel</label>
+          <input placeholder="z.B. Seite 42, Aufgabe 3" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
+
+          <label className="field-label">Beschreibung (optional)</label>
+          <textarea placeholder="Details..." value={description} onChange={(e) => setDescription(e.target.value)} />
+
+          <div className="row wrap" style={{ alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label className="field-label">Fach</label>
+              <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} required>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>{subjectEmoji(s.icon)} {s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label className="field-label">Fällig</label>
+              <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required />
+            </div>
+          </div>
           <button type="submit">Speichern</button>
         </form>
       )}
 
-      {error && <p style={{ color: "#f87171" }}>{error}</p>}
+      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 24 }}>
+        {items.length === 0 && !showForm && (
+          <div className="empty-state">
+            <span className="emoji">🎉</span>
+            Nichts offen. Zeit für eine Pause.
+          </div>
+        )}
         {items.map((hw) => (
-          <div key={hw.id} className={`card ${hw.completed_by_me ? "done" : ""}`}>
-            <span className="subject-tag" style={{ background: hw.subject.color, color: "#0f1115" }}>
-              {hw.subject.name}
-            </span>
-            <h3 style={{ margin: "4px 0" }}>{hw.title}</h3>
-            {hw.description && <p style={{ color: "var(--muted)" }}>{hw.description}</p>}
-            <p className="due">Fällig: {formatDue(hw.due_at)} · {hw.completed_count} Mitschüler erledigt</p>
-            <button className={hw.completed_by_me ? "secondary" : ""} onClick={() => handleToggle(hw)}>
-              {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren (nur für mich)"}
+          <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <span className="subject-tag">
+                  <span className="subject-dot" style={{ background: hw.subject.color, color: hw.subject.color }} />
+                  {subjectEmoji(hw.subject.icon)} {hw.subject.name}
+                </span>
+                <h3>{hw.title}</h3>
+                {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
+                <p className="due">
+                  🕐 {formatDue(hw.due_at)}
+                  {hw.completed_count > 0 && <span className="faint">· {hw.completed_count} Mitschüler erledigt</span>}
+                </p>
+              </div>
+            </div>
+            <button
+              className={hw.completed_by_me ? "secondary" : ""}
+              style={{ marginTop: 14, width: "100%" }}
+              onClick={() => handleToggle(hw)}
+            >
+              {hw.completed_by_me ? "↺ Als offen markieren" : "✓ Als erledigt markieren"}
             </button>
           </div>
         ))}
