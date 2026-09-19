@@ -97,15 +97,6 @@ a:hover { color: var(--accent); }
 
 .card.done { opacity: 0.5; }
 
-.card.hero {
-  border-left: 3px solid var(--accent);
-}
-
-.card.warn {
-  border-left: 3px solid var(--amber);
-  background: var(--amber-bg);
-}
-
 /* ---------- Subject tag ---------- */
 
 .subject-tag {

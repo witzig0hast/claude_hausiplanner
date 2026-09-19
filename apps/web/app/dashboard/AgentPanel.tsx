@@ -41,7 +41,7 @@ export default function AgentPanel({ token }: { token: string }) {
   }
 
   return (
-    <div className="card hero">
+    <div className="card">
       <div className="workload-row">
         {workload && <span className={`pill ${workload.level}`}>{LEVEL_LABEL[workload.level]}</span>}
         {workload && <span className="muted" style={{ fontSize: 14 }}>{workload.message}</span>}

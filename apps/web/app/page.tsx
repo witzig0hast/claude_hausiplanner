@@ -17,7 +17,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className="card hero">
+      <div className="card">
         <h3>Klassenlink erhalten?</h3>
         <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
           Öffne den Link deines Admins, um die offenen Hausaufgaben deiner Klasse einzusehen.

@@ -118,7 +118,7 @@ export default function DashboardPage() {
       {token && <AgentPanel token={token} />}
 
       {subjects.length === 0 && (
-        <div className="card warn">
+        <div className="card">
           <strong>Keine Fächer angelegt.</strong>{" "}
           <span className="muted">{user.is_class_admin ? "Fächer werden in den Einstellungen verwaltet." : "Der Klassen-Admin muss zunächst Fächer anlegen."}</span>
         </div>

@@ -167,7 +167,7 @@ export default function SettingsPage() {
       {error && <p style={{ color: "#fda4af" }}>{error}</p>}
 
       {invite && (
-        <div className="card hero">
+        <div className="card">
           <h3>Klasse teilen</h3>
           <p className="muted" style={{ marginBottom: 8 }}>
             Öffentliche Ansicht ohne Login - zeigt allen mit diesem Link die offenen Hausaufgaben:
