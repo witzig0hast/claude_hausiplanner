@@ -159,7 +159,10 @@ export default function SettingsPage() {
     <div>
       <div className="nav-bar">
         <Logo href="/dashboard" />
-        <a href="/dashboard"><button className="ghost">Zurück</button></a>
+        <div className="row">
+          <a href="/dashboard"><button className="ghost">Zurück</button></a>
+          <span className="avatar" title={user.display_name}>{user.display_name.charAt(0).toUpperCase()}</span>
+        </div>
       </div>
 
       <h1 style={{ marginBottom: 24 }}>Einstellungen</h1>

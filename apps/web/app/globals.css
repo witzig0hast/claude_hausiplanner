@@ -24,6 +24,10 @@
   --radius-md: 10px;
 
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  /* Neutral, non-colored depth - not a glow, just separation from the background. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px -10px rgba(0, 0, 0, 0.6);
 }
 
 * { box-sizing: border-box; }
@@ -48,6 +52,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
 h1 { font-size: 24px; }
 h3 { font-size: 15px; font-weight: 700; }
 p { line-height: 1.6; margin: 0 0 8px; }
+* { font-variant-numeric: tabular-nums; }
 
 a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 a:hover { color: var(--accent); }
@@ -72,15 +77,31 @@ a:hover { color: var(--accent); }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 0;
-  margin-bottom: 32px;
+  padding: 18px 0;
+  margin-bottom: 36px;
   border-bottom: 1px solid var(--border);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
 }
 
 /* ---------- Cards ---------- */
@@ -88,14 +109,21 @@ a:hover { color: var(--accent); }
 .card {
   background: var(--surface);
   border-radius: var(--radius-md);
-  padding: 18px 20px;
+  padding: 20px 22px;
   margin-bottom: 12px;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.card.interactive:hover { border-color: var(--border-strong); }
+.card.interactive:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
 
 .card.done { opacity: 0.5; }
+.card.done:hover { transform: none; box-shadow: var(--shadow-sm); }
 
 /* ---------- Subject tag ---------- */
 
@@ -142,34 +170,38 @@ button {
   padding: 10px 18px;
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.1s ease, border-color 0.1s ease;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
 }
 
-button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-button:active { background: var(--accent-hover); }
-button:disabled { opacity: 0.5; cursor: default; }
+button:hover { background: var(--accent-hover); border-color: var(--accent-hover); transform: translateY(-1px); }
+button:active { background: var(--accent-hover); transform: translateY(0); }
+button:disabled { opacity: 0.5; cursor: default; transform: none; }
 
 button.secondary {
   background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--text);
+  box-shadow: none;
 }
-button.secondary:hover { background: var(--surface-alt); border-color: var(--border-strong); }
+button.secondary:hover { background: var(--surface-alt); border-color: var(--border-strong); transform: none; }
 
 button.ghost {
   background: transparent;
   border: 1px solid transparent;
   color: var(--muted);
   padding: 8px 12px;
+  box-shadow: none;
 }
-button.ghost:hover { color: var(--text); background: var(--surface-alt); border-color: var(--border); }
+button.ghost:hover { color: var(--text); background: var(--surface-alt); border-color: var(--border); transform: none; }
 
 button.danger {
   background: transparent;
   border: 1px solid var(--red);
   color: var(--red);
+  box-shadow: none;
 }
-button.danger:hover { background: var(--red-bg); }
+button.danger:hover { background: var(--red-bg); transform: none; }
 
 /* ---------- Inputs ---------- */
 
@@ -226,11 +258,12 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 /* ---------- Empty state ---------- */
 
 .empty-state {
-  padding: 32px 0;
+  padding: 36px 20px;
   color: var(--muted);
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   text-align: center;
+  background: var(--surface);
 }
 
 /* ---------- Pills / badges ---------- */
@@ -254,7 +287,7 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 /* ---------- Chat ---------- */
 
 .chat-log { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.chat-bubble { max-width: 82%; padding: 10px 14px; border-radius: var(--radius-sm); line-height: 1.5; font-size: 14px; border: 1px solid var(--border); }
+.chat-bubble { max-width: 82%; padding: 10px 14px; border-radius: var(--radius-sm); line-height: 1.5; font-size: 14px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
 .chat-bubble.user { align-self: flex-end; background: var(--accent); color: white; border-color: var(--accent); }
 .chat-bubble.agent { align-self: flex-start; background: var(--surface-alt); }
 
@@ -268,6 +301,8 @@ input[type="color"] { padding: 4px; cursor: pointer; }
   transition: transform 0.45s ease;
   transform-style: preserve-3d;
 }
+.flip-card:hover .flip-card-inner { transform: translateY(-1px); }
+.flip-card.flipped:hover .flip-card-inner { transform: rotateY(180deg); }
 .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
 .flip-card-face {
   position: absolute;
@@ -280,6 +315,7 @@ input[type="color"] { padding: 4px; cursor: pointer; }
   flex-direction: column;
   justify-content: center;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .flip-card-face.back {
   transform: rotateY(180deg);
@@ -291,14 +327,16 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 
 /* ---------- Toggle group ---------- */
 
-.toggle-group { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.toggle-group { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow-sm); }
 .toggle-group button {
   background: transparent;
   border: none;
   border-radius: 0;
   color: var(--muted);
   padding: 9px 18px;
+  box-shadow: none;
 }
+.toggle-group button:hover { transform: none; }
 .toggle-group button:not(:last-child) { border-right: 1px solid var(--border); }
 .toggle-group button:hover { background: var(--surface-alt); color: var(--text); }
 .toggle-group button.active {

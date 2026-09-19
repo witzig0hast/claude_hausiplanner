@@ -105,6 +105,7 @@ export default function DashboardPage() {
           <a href="/flashcards"><button className="ghost">Karteikarten</button></a>
           <a href="/settings"><button className="ghost">Einstellungen</button></a>
           <button className="ghost" onClick={logout}>Abmelden</button>
+          <span className="avatar" title={user.display_name}>{user.display_name.charAt(0).toUpperCase()}</span>
         </div>
       </div>
 
