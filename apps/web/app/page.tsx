@@ -8,45 +8,37 @@ export default function HomePage() {
         <Logo href="" />
       </div>
 
-      <div style={{ padding: "24px 0 4px" }}>
-        <h1 style={{ fontSize: 32, lineHeight: 1.25 }}>Hausaufgabenverwaltung für deine Klasse.</h1>
-        <p className="subtitle" style={{ fontSize: 15.5, maxWidth: 520 }}>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <p className="kicker">Für Schülerinnen und Schüler</p>
+        <h1 style={{ lineHeight: 1.2, marginBottom: 14 }}>
+          Hausaufgaben, die deine ganze Klasse im Blick hat.
+        </h1>
+        <p className="muted" style={{ maxWidth: 480, marginBottom: 22 }}>
           Geteilte Hausaufgabenliste, ein KI-Assistent für Zusammenfassungen und Rückfragen,
           und eine Einschätzung der Auslastung anhand deines Stundenplans - öffentlich einsehbar
           ohne Konto, bearbeitbar mit Login.
         </p>
+        <div className="row">
+          <Link href="/login"><button>Konto erstellen</button></Link>
+          <Link href="/login"><button className="secondary">Ich habe schon eins</button></Link>
+        </div>
       </div>
 
       <div className="card">
-        <h3>Klassenlink erhalten?</h3>
-        <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
-          Öffne den Link deines Admins, um die offenen Hausaufgaben deiner Klasse einzusehen.
-          Kein Konto notwendig.
-        </p>
-      </div>
-
-      <div className="card">
-        <h3>Neue Klasse einrichten</h3>
-        <p className="muted" style={{ marginTop: 6 }}>
-          Registrierung ohne Einladungscode legt automatisch eine neue Klasse an; der
-          registrierende Nutzer wird deren Admin.
-        </p>
-        <Link href="/login"><button>Konto erstellen</button></Link>
-      </div>
-
-      <p className="section-title">Funktionsumfang</p>
-      <div className="stack">
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <span>KI-Zusammenfassung und Rückfragen</span>
-          <span className="faint">Ollama, lokal gehostet</span>
-        </div>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <span>Auslastungseinschätzung</span>
-          <span className="faint">Bedarf vs. freie Zeit</span>
-        </div>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <span>Karteikarten aus Lernstoff</span>
-          <span className="faint">automatisch generiert</span>
+        <h3 style={{ marginBottom: 16 }}>So funktioniert es</h3>
+        <div className="step-list">
+          <div className="step">
+            <span className="step-number">1</span>
+            <p className="step-text">Klasse anlegen oder per Einladungscode beitreten.</p>
+          </div>
+          <div className="step">
+            <span className="step-number">2</span>
+            <p className="step-text">Hausaufgaben eintragen - sichtbar für die ganze Klasse, abgehakt wird individuell.</p>
+          </div>
+          <div className="step">
+            <span className="step-number">3</span>
+            <p className="step-text">Der Agent fasst zusammen, beantwortet Rückfragen und schätzt die Auslastung ein.</p>
+          </div>
         </div>
       </div>
     </div>
