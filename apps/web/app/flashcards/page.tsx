@@ -1,39 +1,52 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Flashcard, generateFlashcards } from "../../lib/api";
-import { Logo } from "../../components/Logo";
+import { useEffect, useRef, useState } from "react";
+import { createDeck, DeckSummary, fetchDecks, User } from "../../lib/api";
+import { AppShell } from "../../components/AppShell";
+import { PlusIcon } from "../../components/icons";
 
 export default function FlashcardsPage() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [decks, setDecks] = useState<DeckSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
   const [text, setText] = useState("");
-  const [cards, setCards] = useState<Flashcard[]>([]);
-  const [flipped, setFlipped] = useState<Record<number, boolean>>({});
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
-    if (!t) {
+    const u = localStorage.getItem("hausiplanner_user");
+    if (!t || !u) {
       router.push("/login");
       return;
     }
     setToken(t);
+    setUser(JSON.parse(u));
+    fetchDecks(t)
+      .then(setDecks)
+      .finally(() => setLoading(false));
   }, [router]);
 
-  async function handleGenerate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!token || !text.trim()) return;
+    if (!token || (!text.trim() && !file)) return;
     setBusy(true);
     setError(null);
-    setCards([]);
-    setFlipped({});
     try {
-      const res = await generateFlashcards(token, text);
-      setCards(res.cards);
-      if (res.cards.length === 0) setError("Aus dem eingefügten Text konnten keine Karten erstellt werden.");
+      const deck = await createDeck(token, { title: title.trim() || undefined, text: text.trim() || undefined, file: file ?? undefined });
+      setDecks((prev) => [deck, ...prev]);
+      setShowForm(false);
+      setTitle("");
+      setText("");
+      setFile(null);
+      router.push(`/flashcards/${deck.id}`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -44,54 +57,93 @@ export default function FlashcardsPage() {
   if (!token) return null;
 
   return (
-    <div>
-      <div className="nav-bar">
-        <Logo href="/dashboard" />
-        <a href="/dashboard"><button className="ghost">Zurück</button></a>
+    <AppShell user={user}>
+      <div className="top-bar">
+        <div>
+          <h1>Karteikarten</h1>
+          <p className="subtitle" style={{ margin: 0 }}>
+            Decks aus Text oder Foto - jeder übt für sich, der Fortschritt bleibt privat.
+          </p>
+        </div>
+        <button onClick={() => setShowForm((s) => !s)}>
+          {showForm ? (
+            "Abbrechen"
+          ) : (
+            <span className="row" style={{ gap: 6 }}>
+              <PlusIcon size={15} /> Neues Deck
+            </span>
+          )}
+        </button>
       </div>
 
-      <h1>Karteikarten</h1>
-      <p className="subtitle">Lernstoff einfügen - der Agent erstellt daraus Frage-Antwort-Karten.</p>
+      {showForm && (
+        <form onSubmit={handleCreate} className="card" style={{ marginBottom: 24 }}>
+          <input
+            placeholder="Titel (optional)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <textarea
+            placeholder="Lernstoff einfügen - der Agent erstellt daraus Frage-Antwort-Karten"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ height: 120 }}
+            disabled={!!file}
+          />
+          <div className="row" style={{ margin: "10px 0" }}>
+            <span className="faint">oder</span>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              style={{ marginBottom: 0 }}
+            />
+            {file && (
+              <button type="button" className="ghost" onClick={() => { setFile(null); if (fileInput.current) fileInput.current.value = ""; }}>
+                Entfernen
+              </button>
+            )}
+          </div>
+          <button type="submit" disabled={busy || (!text.trim() && !file)} style={{ width: "100%" }}>
+            {busy ? "Wird erstellt..." : "Deck erstellen"}
+          </button>
+          {error && <p style={{ color: "#f19999", marginTop: 10 }}>{error}</p>}
+        </form>
+      )}
 
-      <form onSubmit={handleGenerate} className="card">
-        <textarea
-          placeholder="Text aus Heft oder Buch einfügen"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ height: 140 }}
-        />
-        <button type="submit" disabled={busy} style={{ width: "100%" }}>
-          {busy ? "Wird erstellt..." : "Karteikarten erstellen"}
-        </button>
-      </form>
+      {loading && <p className="muted">Lädt...</p>}
 
-      {error && <p style={{ color: "#f19999" }}>{error}</p>}
+      {!loading && decks.length === 0 && !showForm && (
+        <div className="empty-state">
+          <p>Noch keine Karteikarten-Decks.</p>
+          <p className="faint">Erstelle das erste Deck aus einem Foto oder eingefügtem Text.</p>
+        </div>
+      )}
 
-      {cards.length > 0 && (
-        <>
-          <p className="section-title">{cards.length} Karte{cards.length === 1 ? "" : "n"} - zum Umdrehen anklicken</p>
-          <div className="stack">
-            {cards.map((card, i) => (
-              <div
-                key={i}
-                className={`flip-card ${flipped[i] ? "flipped" : ""}`}
-                onClick={() => setFlipped((f) => ({ ...f, [i]: !f[i] }))}
-              >
-                <div className="flip-card-inner">
-                  <div className="flip-card-face front">
-                    <div className="flip-card-label">Frage</div>
-                    <p className="flip-card-text">{card.question}</p>
+      {decks.length > 0 && (
+        <div className="stack">
+          {decks.map((deck) => (
+            <a key={deck.id} href={`/flashcards/${deck.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+              <div className="card interactive">
+                <div className="top-bar" style={{ marginBottom: 0 }}>
+                  <div>
+                    <p style={{ fontWeight: 600, margin: 0 }}>{deck.title}</p>
+                    <p className="faint" style={{ margin: "4px 0 0" }}>
+                      {deck.card_count} Karte{deck.card_count === 1 ? "" : "n"}
+                    </p>
                   </div>
-                  <div className="flip-card-face back">
-                    <div className="flip-card-label">Antwort</div>
-                    <p className="flip-card-text">{card.answer}</p>
-                  </div>
+                  {deck.due_count > 0 ? (
+                    <span className="pill yellow">{deck.due_count} fällig</span>
+                  ) : (
+                    <span className="pill green">alles gelernt</span>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        </>
+            </a>
+          ))}
+        </div>
       )}
-    </div>
+    </AppShell>
   );
 }

@@ -24,16 +24,3 @@ class WorkloadOut(BaseModel):
     minutes_needed: int
     minutes_available: int
     message: str
-
-
-class FlashcardsRequest(BaseModel):
-    text: str
-
-
-class Flashcard(BaseModel):
-    question: str
-    answer: str
-
-
-class FlashcardsResponse(BaseModel):
-    cards: list[Flashcard]

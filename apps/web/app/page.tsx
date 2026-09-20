@@ -3,7 +3,7 @@ import { Logo } from "../components/Logo";
 
 export default function HomePage() {
   return (
-    <div>
+    <div className="page-narrow">
       <div className="nav-bar">
         <Logo href="" />
       </div>

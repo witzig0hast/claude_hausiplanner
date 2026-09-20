@@ -32,3 +32,6 @@ class SchoolClass(Base):
     calendar_events: Mapped[list["CalendarEvent"]] = relationship(
         back_populates="school_class", cascade="all, delete-orphan"
     )
+    flashcard_decks: Mapped[list["FlashcardDeck"]] = relationship(
+        back_populates="school_class", cascade="all, delete-orphan"
+    )

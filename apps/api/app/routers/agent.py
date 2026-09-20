@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,13 +11,10 @@ from app.schemas.push import (
     AgentSummaryOut,
     ChatRequest,
     ChatResponse,
-    Flashcard,
-    FlashcardsRequest,
-    FlashcardsResponse,
     RegisterPushTokenRequest,
     WorkloadOut,
 )
-from app.services.ollama_agent import AgentUnavailableError, answer_question, generate_flashcards, generate_summary_for_user
+from app.services.ollama_agent import answer_question, generate_summary_for_user
 from app.services.planner import compute_workload
 
 router = APIRouter(tags=["agent"])
@@ -42,15 +39,6 @@ async def agent_chat(
 @router.get("/agent/workload", response_model=WorkloadOut)
 def agent_workload(user: User = Depends(require_class_member), db: Session = Depends(get_db)):
     return WorkloadOut(**compute_workload(db, user))
-
-
-@router.post("/agent/flashcards", response_model=FlashcardsResponse)
-async def agent_flashcards(payload: FlashcardsRequest, user: User = Depends(require_class_member)):
-    try:
-        cards = await generate_flashcards(payload.text)
-    except AgentUnavailableError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
-    return FlashcardsResponse(cards=[Flashcard(**c) for c in cards])
 
 
 @router.post("/push/register-token", status_code=204)

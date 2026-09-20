@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  createHomework,
+  createHomeworkWithRepeat,
   fetchMyHomework,
   fetchMySubjects,
   Homework,
@@ -11,7 +11,9 @@ import {
   toggleComplete,
   User,
 } from "../../lib/api";
-import { Logo } from "../../components/Logo";
+import { AppShell } from "../../components/AppShell";
+import { ToastProvider, useToast } from "../../components/Toast";
+import { PlusIcon } from "../../components/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -24,8 +26,28 @@ function formatDue(due: string) {
   });
 }
 
-export default function DashboardPage() {
+function groupByDue(items: Homework[]) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+  const endOfWeek = new Date(startOfToday.getTime() + (7 - startOfToday.getDay() + 1) * 24 * 60 * 60 * 1000);
+
+  const today: Homework[] = [];
+  const thisWeek: Homework[] = [];
+  const later: Homework[] = [];
+
+  for (const hw of items) {
+    const due = new Date(hw.due_at);
+    if (due < endOfToday) today.push(hw);
+    else if (due < endOfWeek) thisWeek.push(hw);
+    else later.push(hw);
+  }
+  return { today, thisWeek, later };
+}
+
+function DashboardInner() {
   const router = useRouter();
+  const showToast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [items, setItems] = useState<Homework[]>([]);
@@ -35,7 +57,10 @@ export default function DashboardPage() {
   const [description, setDescription] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [repeatWeeks, setRepeatWeeks] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterSubject, setFilterSubject] = useState("");
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -67,53 +92,101 @@ export default function DashboardPage() {
 
   async function handleToggle(hw: Homework) {
     if (!token) return;
-    await toggleComplete(token, hw.id, !hw.completed_by_me);
-    refresh();
+    const nextDone = !hw.completed_by_me;
+    setItems((prev) => prev.map((i) => (i.id === hw.id ? { ...i, completed_by_me: nextDone } : i)));
+    try {
+      await toggleComplete(token, hw.id, nextDone);
+      showToast(nextDone ? "Als erledigt markiert" : "Als offen markiert");
+    } catch {
+      setItems((prev) => prev.map((i) => (i.id === hw.id ? { ...i, completed_by_me: !nextDone } : i)));
+      showToast("Status konnte nicht geändert werden", "error");
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!token || !subjectId || !dueAt) return;
-    await createHomework(token, {
-      title,
-      description: description || undefined,
-      due_at: new Date(dueAt).toISOString(),
-      subject_id: subjectId,
-    });
-    setTitle("");
-    setDescription("");
-    setDueAt("");
-    setShowForm(false);
-    refresh();
-  }
-
-  function logout() {
-    localStorage.removeItem("hausiplanner_token");
-    localStorage.removeItem("hausiplanner_user");
-    router.push("/login");
+    try {
+      await createHomeworkWithRepeat(token, {
+        title,
+        description: description || undefined,
+        due_at: new Date(dueAt).toISOString(),
+        subject_id: subjectId,
+        repeat_weeks: repeatWeeks || undefined,
+      });
+      setTitle("");
+      setDescription("");
+      setDueAt("");
+      setRepeatWeeks(0);
+      setShowForm(false);
+      refresh();
+      showToast("Hausaufgabe gespeichert");
+    } catch {
+      showToast("Konnte Hausaufgabe nicht speichern", "error");
+    }
   }
 
   if (!user) return null;
 
   const openCount = items.filter((i) => !i.completed_by_me).length;
+  const filtered = items
+    .filter((hw) => !filterSubject || hw.subject.id === filterSubject)
+    .filter(
+      (hw) =>
+        !search.trim() ||
+        hw.title.toLowerCase().includes(search.toLowerCase()) ||
+        hw.description?.toLowerCase().includes(search.toLowerCase())
+    );
+  const { today, thisWeek, later } = groupByDue(filtered);
+
+  function renderGroup(label: string, group: Homework[]) {
+    if (group.length === 0) return null;
+    return (
+      <>
+        <p className="group-heading">
+          {label} <span className="count">· {group.length}</span>
+        </p>
+        <div className="stack">
+          {group.map((hw) => (
+            <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
+              <span className="subject-tag">
+                <span className="subject-dot" style={{ background: hw.subject.color }} />
+                {hw.subject.name}
+              </span>
+              <h3>{hw.title}</h3>
+              {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
+              <p className="due">
+                Fällig {formatDue(hw.due_at)}
+                {hw.completed_count > 0 && <span> · {hw.completed_count} Mitschüler erledigt</span>}
+              </p>
+              <button
+                className={hw.completed_by_me ? "secondary" : ""}
+                style={{ marginTop: 14, width: "100%" }}
+                onClick={() => handleToggle(hw)}
+              >
+                {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
 
   return (
-    <div>
-      <div className="nav-bar">
-        <Logo href="/dashboard" />
-        <div className="row">
-          <a href="/flashcards"><button className="ghost">Karteikarten</button></a>
-          <a href="/settings"><button className="ghost">Einstellungen</button></a>
-          <button className="ghost" onClick={logout}>Abmelden</button>
-          <span className="avatar" title={user.display_name}>{user.display_name.charAt(0).toUpperCase()}</span>
+    <AppShell user={user}>
+      <div className="top-bar">
+        <div>
+          <h1>{user.display_name}</h1>
+          <p className="subtitle" style={{ margin: 0 }}>
+            {openCount === 0 ? "Keine offenen Hausaufgaben." : `${openCount} offene Hausaufgabe${openCount === 1 ? "" : "n"}.`}
+          </p>
         </div>
-      </div>
-
-      <div style={{ marginBottom: 4 }}>
-        <h1>{user.display_name}</h1>
-        <p className="subtitle">
-          {openCount === 0 ? "Keine offenen Hausaufgaben." : `${openCount} offene Hausaufgabe${openCount === 1 ? "" : "n"}.`}
-        </p>
+        <button onClick={() => setShowForm(!showForm)}>
+          <span className="row" style={{ gap: 6 }}>
+            <PlusIcon size={15} /> Hausaufgabe
+          </span>
+        </button>
       </div>
 
       {token && <AgentPanel token={token} />}
@@ -125,10 +198,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <button onClick={() => setShowForm(!showForm)}>{showForm ? "Abbrechen" : "Hausaufgabe hinzufügen"}</button>
-
       {showForm && (
-        <form onSubmit={handleCreate} className="card" style={{ marginTop: 14 }}>
+        <form onSubmit={handleCreate} className="card" style={{ marginBottom: 20 }}>
           <label className="field-label">Titel</label>
           <input placeholder="z.B. Seite 42, Aufgabe 3" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
 
@@ -149,38 +220,53 @@ export default function DashboardPage() {
               <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required />
             </div>
           </div>
+
+          <label className="field-label">Wiederholt sich wöchentlich (z.B. Vokabeln)</label>
+          <select value={repeatWeeks} onChange={(e) => setRepeatWeeks(Number(e.target.value))}>
+            <option value={0}>Nur diese eine Woche</option>
+            <option value={1}>+ 1 weitere Woche</option>
+            <option value={4}>+ 4 weitere Wochen</option>
+            <option value={8}>+ 8 weitere Wochen</option>
+          </select>
+
           <button type="submit">Speichern</button>
         </form>
       )}
 
       {error && <p style={{ color: "#f19999" }}>{error}</p>}
 
-      <div style={{ marginTop: 24 }}>
-        {items.length === 0 && !showForm && (
-          <div className="empty-state">Keine Hausaufgaben vorhanden.</div>
-        )}
-        {items.map((hw) => (
-          <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
-            <span className="subject-tag">
-              <span className="subject-dot" style={{ background: hw.subject.color }} />
-              {hw.subject.name}
-            </span>
-            <h3>{hw.title}</h3>
-            {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
-            <p className="due">
-              Fällig {formatDue(hw.due_at)}
-              {hw.completed_count > 0 && <span> · {hw.completed_count} Mitschüler erledigt</span>}
-            </p>
-            <button
-              className={hw.completed_by_me ? "secondary" : ""}
-              style={{ marginTop: 14, width: "100%" }}
-              onClick={() => handleToggle(hw)}
-            >
-              {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren"}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
+      {items.length > 0 && (
+        <div className="row wrap" style={{ marginBottom: 8 }}>
+          <input
+            placeholder="Hausaufgaben durchsuchen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 2, minWidth: 180, marginBottom: 0 }}
+          />
+          <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)} style={{ flex: 1, minWidth: 140 }}>
+            <option value="">Alle Fächer</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {filtered.length === 0 && !showForm && (
+        <div className="empty-state">Keine Hausaufgaben vorhanden.</div>
+      )}
+
+      {renderGroup("Heute", today)}
+      {renderGroup("Diese Woche", thisWeek)}
+      {renderGroup("Später", later)}
+    </AppShell>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <ToastProvider>
+      <DashboardInner />
+    </ToastProvider>
   );
 }

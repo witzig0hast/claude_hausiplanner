@@ -21,7 +21,7 @@ export default async function PublicClassPage({ params }: { params: { classId: s
   }
 
   return (
-    <div>
+    <div className="page-narrow">
       <div className="nav-bar">
         <Logo href="/" />
         <Link href="/login"><button className="secondary">Einloggen</button></Link>

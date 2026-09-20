@@ -197,17 +197,158 @@ export async function setAgentTone(token: string, tone: "locker" | "streng"): Pr
   return res.json();
 }
 
-export type Flashcard = { question: string; answer: string };
+export type DeckSummary = {
+  id: string;
+  title: string;
+  created_at: string;
+  card_count: number;
+  due_count: number;
+};
 
-export async function generateFlashcards(token: string, text: string): Promise<{ cards: Flashcard[] }> {
-  const res = await fetch(`${API_BASE}/agent/flashcards`, {
+export type FlashcardOut = {
+  id: string;
+  question: string;
+  answer: string;
+  box: number;
+  next_review_at: string;
+  due: boolean;
+};
+
+export type DeckDetail = DeckSummary & { cards: FlashcardOut[] };
+
+export async function fetchDecks(token: string): Promise<DeckSummary[]> {
+  const res = await fetch(`${API_BASE}/flashcards/decks`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Karteikarten-Decks nicht laden");
+  return res.json();
+}
+
+export async function fetchDeck(token: string, deckId: string): Promise<DeckDetail> {
+  const res = await fetch(`${API_BASE}/flashcards/decks/${deckId}`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Deck nicht laden");
+  return res.json();
+}
+
+export async function createDeck(
+  token: string,
+  { title, text, file }: { title?: string; text?: string; file?: File }
+): Promise<DeckDetail> {
+  const form = new FormData();
+  if (title) form.append("title", title);
+  if (text) form.append("text", text);
+  if (file) form.append("file", file);
+  const res = await fetch(`${API_BASE}/flashcards/decks`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders(token) },
-    body: JSON.stringify({ text }),
+    headers: authHeaders(token),
+    body: form,
   });
   if (!res.ok) {
     if (res.status === 503) throw new Error("KI-Agent (Ollama) ist gerade nicht erreichbar.");
-    throw new Error("Konnte Karteikarten nicht erstellen");
+    throw new Error("Konnte Deck nicht erstellen");
   }
+  return res.json();
+}
+
+export async function addCard(token: string, deckId: string, question: string, answer: string): Promise<FlashcardOut> {
+  const res = await fetch(`${API_BASE}/flashcards/decks/${deckId}/cards`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ question, answer }),
+  });
+  if (!res.ok) throw new Error("Konnte Karte nicht hinzufügen");
+  return res.json();
+}
+
+export async function deleteDeck(token: string, deckId: string) {
+  const res = await fetch(`${API_BASE}/flashcards/decks/${deckId}`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Deck nicht löschen (nur Ersteller oder Admin)");
+}
+
+export async function deleteCard(token: string, cardId: string) {
+  const res = await fetch(`${API_BASE}/flashcards/cards/${cardId}`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Karte nicht löschen");
+}
+
+export async function reviewCard(token: string, cardId: string, result: "know" | "again"): Promise<FlashcardOut> {
+  const res = await fetch(`${API_BASE}/flashcards/cards/${cardId}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ result }),
+  });
+  if (!res.ok) throw new Error("Konnte Wiederholung nicht speichern");
+  return res.json();
+}
+
+export type Member = { id: string; display_name: string; email: string; is_class_admin: boolean };
+
+export async function fetchMembers(token: string): Promise<Member[]> {
+  const res = await fetch(`${API_BASE}/classes/me/members`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Mitglieder nicht laden");
+  return res.json();
+}
+
+export async function promoteMember(token: string, userId: string): Promise<Member> {
+  const res = await fetch(`${API_BASE}/classes/me/members/${userId}/promote`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Konnte Mitglied nicht befördern");
+  return res.json();
+}
+
+export async function demoteMember(token: string, userId: string): Promise<Member> {
+  const res = await fetch(`${API_BASE}/classes/me/members/${userId}/demote`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    if (res.status === 409) throw new Error("Es muss mindestens ein Admin übrig bleiben");
+    throw new Error("Konnte Admin-Rechte nicht entziehen");
+  }
+  return res.json();
+}
+
+export type SubjectStat = {
+  subject_id: string;
+  subject_name: string;
+  subject_color: string;
+  homework_count: number;
+  avg_completion_rate: number;
+};
+
+export async function fetchClassStats(token: string): Promise<SubjectStat[]> {
+  const res = await fetch(`${API_BASE}/classes/me/stats`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Statistik nicht laden (nur Admin)");
+  return res.json();
+}
+
+export async function downloadIcsExport(token: string) {
+  const res = await fetch(`${API_BASE}/homework/export.ics`, { headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Kalenderexport nicht laden");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "hausaufgaben.ics";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function createHomeworkWithRepeat(
+  token: string,
+  payload: {
+    title: string;
+    description?: string;
+    due_at: string;
+    subject_id: string;
+    estimated_minutes?: number;
+    repeat_weeks?: number;
+  }
+) {
+  const res = await fetch(`${API_BASE}/homework`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Konnte Hausaufgabe nicht erstellen");
   return res.json();
 }

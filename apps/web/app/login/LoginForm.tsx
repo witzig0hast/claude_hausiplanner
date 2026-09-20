@@ -43,7 +43,7 @@ export default function LoginForm() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: "0 auto", paddingTop: 40 }}>
+    <div style={{ maxWidth: 420, margin: "0 auto", paddingTop: 40, paddingLeft: 20, paddingRight: 20 }}>
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
         <Logo href="/" />
       </div>

@@ -12,6 +12,7 @@ class HomeworkCreate(BaseModel):
     due_at: datetime
     subject_id: uuid.UUID
     estimated_minutes: int | None = None
+    repeat_weeks: int | None = None  # if set, also creates this many weekly-spaced follow-up copies
 
 
 class HomeworkOut(BaseModel):

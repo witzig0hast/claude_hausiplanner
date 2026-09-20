@@ -1,12 +1,22 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
+from app.models.homework import Homework
 from app.models.subject import Subject
 from app.models.user import User
-from app.schemas.school_class import ClassInviteOut, SchoolClassOut, SubjectCreate, SubjectOut
+from app.schemas.school_class import (
+    ClassInviteOut,
+    MemberOut,
+    SchoolClassOut,
+    SubjectCreate,
+    SubjectOut,
+    SubjectStatOut,
+)
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
@@ -56,3 +66,91 @@ def delete_subject(
         Subject.id == subject_id, Subject.school_class_id == user.school_class_id
     ).delete()
     db.commit()
+
+
+@router.get("/me/members", response_model=list[MemberOut])
+def list_members(user: User = Depends(require_class_member), db: Session = Depends(get_db)):
+    return (
+        db.query(User)
+        .filter(User.school_class_id == user.school_class_id)
+        .order_by(User.display_name.asc())
+        .all()
+    )
+
+
+@router.put("/me/members/{user_id}/promote", response_model=MemberOut)
+def promote_member(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
+):
+    """Mehrere Admins pro Klasse sind erlaubt - z.B. bei Krankheit/Urlaub."""
+    member = db.get(User, user_id)
+    if member is None or member.school_class_id != admin.school_class_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mitglied nicht gefunden")
+    member.is_class_admin = True
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.put("/me/members/{user_id}/demote", response_model=MemberOut)
+def demote_member(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
+):
+    member = db.get(User, user_id)
+    if member is None or member.school_class_id != admin.school_class_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mitglied nicht gefunden")
+    other_admins = (
+        db.query(User)
+        .filter(User.school_class_id == admin.school_class_id, User.is_class_admin.is_(True), User.id != member.id)
+        .count()
+    )
+    if other_admins == 0:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Es muss mindestens ein Admin übrig bleiben")
+    member.is_class_admin = False
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.get("/me/stats", response_model=list[SubjectStatOut])
+def class_stats(user: User = Depends(require_class_admin), db: Session = Depends(get_db)):
+    member_count = max(
+        1, db.query(User).filter(User.school_class_id == user.school_class_id).count()
+    )
+    subjects = db.query(Subject).filter(Subject.school_class_id == user.school_class_id).all()
+    homework_items = (
+        db.query(Homework)
+        .options(joinedload(Homework.completions))
+        .filter(Homework.school_class_id == user.school_class_id)
+        .all()
+    )
+
+    stats: list[SubjectStatOut] = []
+    for subject in subjects:
+        subject_items = [hw for hw in homework_items if hw.subject_id == subject.id]
+        if not subject_items:
+            stats.append(
+                SubjectStatOut(
+                    subject_id=subject.id,
+                    subject_name=subject.name,
+                    subject_color=subject.color,
+                    homework_count=0,
+                    avg_completion_rate=0.0,
+                )
+            )
+            continue
+        rates = [len(hw.completions) / member_count for hw in subject_items]
+        stats.append(
+            SubjectStatOut(
+                subject_id=subject.id,
+                subject_name=subject.name,
+                subject_color=subject.color,
+                homework_count=len(subject_items),
+                avg_completion_rate=min(1.0, sum(rates) / len(rates)),
+            )
+        )
+    return stats

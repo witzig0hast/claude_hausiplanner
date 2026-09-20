@@ -21,10 +21,12 @@ def test_summary_and_chat_gracefully_degrade_without_ollama(client):
     assert "answer" in chat.json()
 
 
-def test_flashcards_returns_503_without_ollama(client):
+def test_flashcard_deck_creation_returns_503_without_ollama(client):
     admin = register(client)
     resp = client.post(
-        "/agent/flashcards", headers=auth_headers(admin["access_token"]), json={"text": "Photosynthese..."}
+        "/flashcards/decks",
+        headers=auth_headers(admin["access_token"]),
+        data={"text": "Photosynthese..."},
     )
     assert resp.status_code == 503
 

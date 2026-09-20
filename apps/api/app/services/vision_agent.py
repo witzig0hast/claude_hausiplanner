@@ -13,6 +13,7 @@ import httpx
 from app.config import settings
 
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
+_JSON_ARRAY_BLOCK = re.compile(r"\[.*\]", re.DOTALL)
 
 HOMEWORK_PROMPT = """Du siehst ein Foto einer Hausaufgabe (Tafel, Aufgabenblatt oder Heft).
 Extrahiere die Hausaufgabe und antworte NUR mit einem JSON-Objekt, ohne weitere Erklärung,
@@ -25,6 +26,12 @@ Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
 TIMETABLE_PROMPT = """Du siehst ein Foto eines Stundenplans. Extrahiere alle erkennbaren Stunden
 und antworte NUR mit einem JSON-Objekt in exakt diesem Format, ohne weitere Erklärung:
 {{"entries": [{{"subject_guess": "<Fach>", "weekday_guess": "<Montag|Dienstag|Mittwoch|Donnerstag|Freitag>", "starts_at_guess": "<HH:MM>", "ends_at_guess": "<HH:MM>"}}]}}
+"""
+
+FLASHCARDS_VISION_PROMPT = """Du siehst ein Foto von Lernstoff (Heftseite, Buchseite oder Tafel).
+Lies den Inhalt und erzeuge daraus 5-8 Karteikarten (Frage/Antwort) zum Üben.
+Antworte NUR mit einem JSON-Array in exakt diesem Format, ohne weitere Erklärung:
+[{{"question": "<Frage>", "answer": "<kurze Antwort>"}}, ...]
 """
 
 
@@ -81,3 +88,15 @@ async def extract_timetable_from_image(image_bytes: bytes) -> dict:
         parsed = {"entries": []}
     parsed["raw_model_output"] = raw
     return parsed
+
+
+async def extract_flashcards_from_image(image_bytes: bytes) -> list[dict]:
+    raw = await _call_vision_model(image_bytes, FLASHCARDS_VISION_PROMPT)
+    match = _JSON_ARRAY_BLOCK.search(raw)
+    if not match:
+        return []
+    try:
+        cards = json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return []
+    return [c for c in cards if isinstance(c, dict) and "question" in c and "answer" in c]

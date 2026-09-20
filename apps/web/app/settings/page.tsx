@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 import {
   CalendarEvent,
   ClassInvite,
+  demoteMember,
+  downloadIcsExport,
+  fetchClassStats,
+  fetchMembers,
+  Member,
+  promoteMember,
   Subject,
+  SubjectStat,
   User,
   createCalendarEvent,
   createSubject,
@@ -16,7 +23,7 @@ import {
   fetchMySubjects,
   setAgentTone,
 } from "../../lib/api";
-import { Logo } from "../../components/Logo";
+import { AppShell } from "../../components/AppShell";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
@@ -37,6 +44,8 @@ export default function SettingsPage() {
   const [invite, setInvite] = useState<ClassInvite | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [stats, setStats] = useState<SubjectStat[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -68,16 +77,46 @@ export default function SettingsPage() {
   async function refresh() {
     if (!token) return;
     try {
-      const [inv, subj, evs] = await Promise.all([
+      const [inv, subj, evs, mem] = await Promise.all([
         fetchInvite(token),
         fetchMySubjects(token),
         fetchCalendarEvents(token),
+        fetchMembers(token),
       ]);
       setInvite(inv);
       setSubjects(subj);
       setEvents(evs);
+      setMembers(mem);
+      if (user?.is_class_admin) {
+        fetchClassStats(token).then(setStats).catch(() => {});
+      }
     } catch {
       setError("Konnte Daten nicht laden.");
+    }
+  }
+
+  async function handlePromote(id: string) {
+    if (!token) return;
+    await promoteMember(token, id);
+    refresh();
+  }
+
+  async function handleDemote(id: string) {
+    if (!token) return;
+    try {
+      await demoteMember(token, id);
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleExportIcs() {
+    if (!token) return;
+    try {
+      await downloadIcsExport(token);
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -156,15 +195,7 @@ export default function SettingsPage() {
   if (!user) return null;
 
   return (
-    <div>
-      <div className="nav-bar">
-        <Logo href="/dashboard" />
-        <div className="row">
-          <a href="/dashboard"><button className="ghost">Zurück</button></a>
-          <span className="avatar" title={user.display_name}>{user.display_name.charAt(0).toUpperCase()}</span>
-        </div>
-      </div>
-
+    <AppShell user={user}>
       <h1 style={{ marginBottom: 24 }}>Einstellungen</h1>
 
       {error && <p style={{ color: "#fda4af" }}>{error}</p>}
@@ -190,8 +221,34 @@ export default function SettingsPage() {
               {copied === "code" ? "Kopiert" : "Kopieren"}
             </button>
           </div>
+          <hr className="divider" />
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Offene Hausaufgaben als Kalenderdatei - importierbar in Apple/Google/Outlook Kalender:
+          </p>
+          <button className="secondary" onClick={handleExportIcs}>Als .ics exportieren</button>
         </div>
       )}
+
+      <div className="card">
+        <h3 style={{ marginBottom: 14 }}>Mitglieder der Klasse</h3>
+        <div className="stack">
+          {members.map((m) => (
+            <div key={m.id} className="row" style={{ justifyContent: "space-between" }}>
+              <span>
+                {m.display_name} <span className="faint">· {m.email}</span>
+                {m.is_class_admin && <span className="pill green" style={{ marginLeft: 8 }}>Admin</span>}
+              </span>
+              {user.is_class_admin && (
+                m.is_class_admin ? (
+                  <button className="ghost" onClick={() => handleDemote(m.id)}>Admin entziehen</button>
+                ) : (
+                  <button className="ghost" onClick={() => handlePromote(m.id)}>Zum Admin machen</button>
+                )
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="card">
         <h3 style={{ marginBottom: 4 }}>Tonfall des Agenten</h3>
@@ -219,6 +276,35 @@ export default function SettingsPage() {
       {user.is_class_admin ? (
         <>
           <p className="section-title">Admin-Bereich</p>
+
+          <div className="card">
+            <h3 style={{ marginBottom: 14 }}>Statistik nach Fach</h3>
+            {stats.length === 0 && <p className="muted">Noch keine Hausaufgaben erfasst.</p>}
+            <div className="stack">
+              {stats.map((s) => (
+                <div key={s.subject_id}>
+                  <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+                    <span className="subject-tag" style={{ marginBottom: 0 }}>
+                      <span className="subject-dot" style={{ background: s.subject_color }} />
+                      {s.subject_name}
+                    </span>
+                    <span className="faint">
+                      {s.homework_count} Aufgabe{s.homework_count === 1 ? "" : "n"} · {Math.round(s.avg_completion_rate * 100)}% erledigt
+                    </span>
+                  </div>
+                  <div style={{ height: 6, background: "var(--surface-alt)", borderRadius: 4, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${Math.round(s.avg_completion_rate * 100)}%`,
+                        background: s.subject_color,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="card">
             <h3 style={{ marginBottom: 14 }}>Fächer verwalten</h3>
@@ -295,6 +381,6 @@ export default function SettingsPage() {
       ) : (
         <p className="muted">Fächer und Kalender werden vom Klassen-Admin gepflegt.</p>
       )}
-    </div>
+    </AppShell>
   );
 }

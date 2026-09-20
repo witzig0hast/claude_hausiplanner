@@ -1,6 +1,8 @@
 import uuid
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -87,15 +89,61 @@ def create_homework(
     user: User = Depends(require_class_member),
     db: Session = Depends(get_db),
 ):
-    hw = Homework(
-        **payload.model_dump(),
-        school_class_id=user.school_class_id,
-        created_by_id=user.id,
-    )
+    data = payload.model_dump()
+    repeat_weeks = data.pop("repeat_weeks", None) or 0
+
+    hw = Homework(**data, school_class_id=user.school_class_id, created_by_id=user.id)
     db.add(hw)
+
+    # Recurring homework (e.g. weekly vocab) - simple weekly-spaced copies, no
+    # separate "template" concept to keep this a one-shot creation.
+    for week in range(1, repeat_weeks + 1):
+        db.add(
+            Homework(
+                **{**data, "due_at": data["due_at"] + timedelta(weeks=week)},
+                school_class_id=user.school_class_id,
+                created_by_id=user.id,
+            )
+        )
+
     db.commit()
     db.refresh(hw)
     return _serialize(hw, viewer_id=user.id)
+
+
+@router.get("/homework/export.ics")
+def export_ics(user: User = Depends(require_class_member), db: Session = Depends(get_db)):
+    """Offene Hausaufgaben als .ics - importierbar in Apple/Google/Outlook Kalender."""
+    items = (
+        db.query(Homework)
+        .options(joinedload(Homework.subject), joinedload(Homework.completions))
+        .filter(Homework.school_class_id == user.school_class_id)
+        .order_by(Homework.due_at.asc())
+        .all()
+    )
+    open_items = [hw for hw in items if not any(c.user_id == user.id for c in hw.completions)]
+
+    def fmt(dt):
+        return dt.strftime("%Y%m%dT%H%M%SZ")
+
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hausiplanner//DE"]
+    for hw in open_items:
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{hw.id}@hausiplanner",
+            f"DTSTAMP:{fmt(hw.created_at)}",
+            f"DTSTART:{fmt(hw.due_at)}",
+            f"SUMMARY:{hw.subject.name}: {hw.title}",
+            f"DESCRIPTION:{(hw.description or '').replace(chr(10), ' ')}",
+            "END:VEVENT",
+        ]
+    lines.append("END:VCALENDAR")
+    ics_content = "\r\n".join(lines)
+    return Response(
+        content=ics_content,
+        media_type="text/calendar",
+        headers={"Content-Disposition": "attachment; filename=hausaufgaben.ics"},
+    )
 
 
 @router.delete("/homework/{homework_id}", status_code=204)
