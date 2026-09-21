@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
-app = FastAPI(title="Hausiplanner API", lifespan=lifespan)
+app = FastAPI(title="Hausaufgabenplaner API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

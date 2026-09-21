@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { CardsIcon, HomeIcon, LogoutIcon, SettingsIcon } from "./icons";
+import { Logo } from "./Logo";
 
 const NAV = [
   { href: "/dashboard", label: "Hausaufgaben", icon: HomeIcon },
@@ -28,13 +29,8 @@ export function AppShell({
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand" style={{ padding: "0 4px", marginBottom: 32 }}>
-          <span className="brand-mark">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M4 12.5L9.5 18L20 6" stroke="white" strokeWidth="3" strokeLinecap="square" />
-            </svg>
-          </span>
-          Hausiplanner
+        <div style={{ padding: "0 4px", marginBottom: 32 }}>
+          <Logo href="/dashboard" />
         </div>
 
         <nav className="sidebar-nav">

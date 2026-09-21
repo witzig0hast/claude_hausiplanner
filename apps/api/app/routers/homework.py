@@ -126,7 +126,7 @@ def export_ics(user: User = Depends(require_class_member), db: Session = Depends
     def fmt(dt):
         return dt.strftime("%Y%m%dT%H%M%SZ")
 
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hausiplanner//DE"]
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hausaufgabenplaner//DE"]
     for hw in open_items:
         lines += [
             "BEGIN:VEVENT",

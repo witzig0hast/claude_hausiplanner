@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Hausiplanner",
+  title: "Hausaufgabenplaner",
   description: "Hausaufgaben deiner Klasse auf einen Blick",
 };
 

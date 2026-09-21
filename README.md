@@ -1,4 +1,4 @@
-# Hausiplanner
+# Hausaufgabenplaner
 
 Hausaufgaben-Planer mit Klassen-Sharing, KI-Zusammenfassung (Ollama) und sanften Push-Erinnerungen.
 Self-hosted auf deinem eigenen Server, erreichbar über deine Domain.
