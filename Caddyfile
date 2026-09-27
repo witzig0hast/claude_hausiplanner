@@ -1,0 +1,18 @@
+# Reverse Proxy fuer den Hausaufgabenplaner - automatisches HTTPS via Let's Encrypt.
+#
+# Setup:
+# 1. Zwei (Sub-)Domains auf die IP dieses Servers zeigen lassen, z.B.
+#    homework.deinedomain.de        -> Web-UI
+#    homework-api.deinedomain.de    -> API
+# 2. Die Platzhalter unten durch deine echten Domains ersetzen.
+# 3. Caddy installieren (https://caddyserver.com/docs/install) und mit dieser Datei starten:
+#    sudo caddy run --config Caddyfile
+#    oder als systemd-Service: sudo caddy reload --config Caddyfile
+
+homework.example-domain.de {
+	reverse_proxy localhost:3000
+}
+
+homework-api.example-domain.de {
+	reverse_proxy localhost:8000
+}

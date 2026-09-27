@@ -141,8 +141,10 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f�
 2. Ollama muss auf dem Host laufen (`ollama serve`, Modell z.B. mit `ollama pull llama3.1`
    vorher ziehen) - der Container erreicht es über `host.docker.internal`.
 3. `docker compose up -d --build`
-4. Reverse Proxy (z.B. Caddy oder Traefik) vor `api` (Port 8000) und `web` (Port 3000) mit
-   Let's Encrypt-Zertifikat für deine Domain(s) einrichten.
+4. Reverse Proxy vor `api` (Port 8000) und `web` (Port 3000) einrichten - fertige, minimale
+   Caddy-Konfiguration liegt als `Caddyfile` im Projekt-Root (Domains darin anpassen, dann
+   `sudo caddy run --config Caddyfile`). Caddy holt sich das Let's-Encrypt-Zertifikat
+   automatisch, sobald die Domain per DNS auf den Server zeigt.
 
 ## Kernkonzepte
 
