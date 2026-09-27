@@ -26,6 +26,19 @@ function authHeaders(token: string | null): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Surfaces the backend's actual error (FastAPI's {"detail": "..."} shape) instead of a
+// generic message, so misconfiguration (wrong API URL, CORS, etc.) is diagnosable from
+// the UI instead of failing silently with no clue why.
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") return body.detail;
+  } catch {
+    // not JSON - fall through to the generic message
+  }
+  return `${fallback} (${res.status})`;
+}
+
 export async function fetchPublicHomework(classId: string): Promise<Homework[]> {
   const res = await fetch(`${API_BASE}/public/classes/${classId}/homework`, { cache: "no-store" });
   if (!res.ok) throw new Error("Konnte Hausaufgaben nicht laden");
@@ -38,7 +51,7 @@ export async function login(email: string, password: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error("Login fehlgeschlagen");
+  if (!res.ok) throw new Error(await errorMessage(res, "Login fehlgeschlagen"));
   return res.json();
 }
 
@@ -53,7 +66,7 @@ export async function register(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, display_name, invite_code }),
   });
-  if (!res.ok) throw new Error("Registrierung fehlgeschlagen");
+  if (!res.ok) throw new Error(await errorMessage(res, "Registrierung fehlgeschlagen"));
   return res.json();
 }
 

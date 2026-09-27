@@ -37,7 +37,7 @@ export default function LoginForm() {
       localStorage.setItem("hausiplanner_user", JSON.stringify(data.user));
       router.push("/dashboard");
     } catch (err) {
-      setError(mode === "login" ? "E-Mail oder Passwort falsch." : "Registrierung fehlgeschlagen.");
+      setError((err as Error).message || (mode === "login" ? "E-Mail oder Passwort falsch." : "Registrierung fehlgeschlagen."));
       setBusy(false);
     }
   }

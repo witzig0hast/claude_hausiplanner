@@ -24,12 +24,13 @@ services:
       - "host.docker.internal:host-gateway"
 
   web:
-    build: ./apps/web
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_URL:-https://homework-api.example-domain.de}
     restart: unless-stopped
     depends_on:
       - api
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_URL:-https://homework-api.example-domain.de}
     ports:
       - "3000:3000"
 
