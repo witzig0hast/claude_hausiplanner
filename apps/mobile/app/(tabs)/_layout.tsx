@@ -15,7 +15,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="add" options={{ title: "Hinzufügen" }} />
       <Tabs.Screen name="plan" options={{ title: "Planung" }} />
       <Tabs.Screen name="chat" options={{ title: "Chat" }} />
-      <Tabs.Screen name="flashcards" options={{ title: "Karten" }} />
       <Tabs.Screen name="settings" options={{ title: "Mehr" }} />
     </Tabs>
   );

@@ -1,12 +1,11 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { CardsIcon, HomeIcon, LogoutIcon, SettingsIcon } from "./icons";
+import { HomeIcon, LogoutIcon, SettingsIcon } from "./icons";
 import { Logo } from "./Logo";
 
 const NAV = [
   { href: "/dashboard", label: "Hausaufgaben", icon: HomeIcon },
-  { href: "/flashcards", label: "Karteikarten", icon: CardsIcon },
   { href: "/settings", label: "Einstellungen", icon: SettingsIcon },
 ];
 

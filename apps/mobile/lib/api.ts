@@ -90,6 +90,14 @@ export async function toggleComplete(token: string, homeworkId: string, done: bo
   return handle<Homework>(res);
 }
 
+export async function deleteHomework(token: string, homeworkId: string) {
+  const res = await fetch(`${API_BASE}/homework/${homeworkId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  return handle<void>(res);
+}
+
 export type HomeworkSuggestion = {
   subject_guess: string | null;
   title: string;
@@ -172,81 +180,6 @@ export async function chatWithAgent(token: string, question: string): Promise<{ 
     body: JSON.stringify({ question }),
   });
   return handle<{ answer: string }>(res);
-}
-
-export type DeckSummary = {
-  id: string;
-  title: string;
-  created_at: string;
-  card_count: number;
-  due_count: number;
-};
-
-export type FlashcardOut = {
-  id: string;
-  question: string;
-  answer: string;
-  box: number;
-  next_review_at: string;
-  due: boolean;
-};
-
-export type DeckDetail = DeckSummary & { cards: FlashcardOut[] };
-
-export async function fetchDecks(token: string): Promise<DeckSummary[]> {
-  const res = await fetch(`${API_BASE}/flashcards/decks`, { headers: authHeaders(token) });
-  return handle<DeckSummary[]>(res);
-}
-
-export async function fetchDeck(token: string, deckId: string): Promise<DeckDetail> {
-  const res = await fetch(`${API_BASE}/flashcards/decks/${deckId}`, { headers: authHeaders(token) });
-  return handle<DeckDetail>(res);
-}
-
-export async function createDeck(
-  token: string,
-  { title, text, imageUri }: { title?: string; text?: string; imageUri?: string }
-): Promise<DeckDetail> {
-  const form = new FormData();
-  if (title) form.append("title", title);
-  if (text) form.append("text", text);
-  if (imageUri) {
-    form.append("file", { uri: imageUri, name: "flashcards.jpg", type: "image/jpeg" } as unknown as Blob);
-  }
-  const res = await fetch(`${API_BASE}/flashcards/decks`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: form,
-  });
-  return handle<DeckDetail>(res);
-}
-
-export async function addCard(token: string, deckId: string, question: string, answer: string): Promise<FlashcardOut> {
-  const res = await fetch(`${API_BASE}/flashcards/decks/${deckId}/cards`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders(token) },
-    body: JSON.stringify({ question, answer }),
-  });
-  return handle<FlashcardOut>(res);
-}
-
-export async function deleteDeck(token: string, deckId: string) {
-  const res = await fetch(`${API_BASE}/flashcards/decks/${deckId}`, { method: "DELETE", headers: authHeaders(token) });
-  return handle<void>(res);
-}
-
-export async function deleteCard(token: string, cardId: string) {
-  const res = await fetch(`${API_BASE}/flashcards/cards/${cardId}`, { method: "DELETE", headers: authHeaders(token) });
-  return handle<void>(res);
-}
-
-export async function reviewCard(token: string, cardId: string, result: "know" | "again"): Promise<FlashcardOut> {
-  const res = await fetch(`${API_BASE}/flashcards/cards/${cardId}/review`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders(token) },
-    body: JSON.stringify({ result }),
-  });
-  return handle<FlashcardOut>(res);
 }
 
 export async function setAgentTone(token: string, tone: "locker" | "streng"): Promise<User> {

@@ -10,18 +10,9 @@ from app.models.calendar_event import CalendarEvent
 from app.models.homework import Homework
 from app.models.user import User
 
-_JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
 _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 
 WEEKDAYS_DE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-
-FLASHCARDS_PROMPT_TEMPLATE = """Erzeuge aus folgendem Lernstoff 5-8 Karteikarten (Frage/Antwort) zum Üben.
-Antworte NUR mit einem JSON-Array in exakt diesem Format, ohne weitere Erklärung:
-[{{"question": "<Frage>", "answer": "<kurze Antwort>"}}, ...]
-
-Lernstoff:
-{text}
-"""
 
 VOICE_HOMEWORK_PROMPT_TEMPLATE = """Ein Schüler hat eine Hausaufgabe eingesprochen, hier die Transkription:
 "{transcript}"
@@ -164,21 +155,6 @@ async def answer_question(db: Session, user: User, question: str) -> str:
 
 class AgentUnavailableError(Exception):
     pass
-
-
-async def generate_flashcards(text: str) -> list[dict]:
-    prompt = FLASHCARDS_PROMPT_TEMPLATE.format(text=text[:4000])
-    result = await _call_text_model(prompt)
-    if result is None:
-        raise AgentUnavailableError(f"Ollama ({settings.ollama_base_url}) nicht erreichbar")
-    match = _JSON_ARRAY.search(result)
-    if not match:
-        return []
-    try:
-        cards = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return []
-    return [c for c in cards if isinstance(c, dict) and "question" in c and "answer" in c]
 
 
 async def extract_homework_from_voice(transcript: str, known_subjects: list[str]) -> dict:

@@ -215,10 +215,9 @@ Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadlin
   Kalender (z.B. "Wie viel Zeit brauche ich noch für Mathe?")
 - `GET /agent/workload` - Ampel (grün/gelb/rot), wie viel Zeit die fälligen Hausaufgaben
   der nächsten 48h im Verhältnis zur tatsächlich freien Zeit brauchen
-- `POST /agent/flashcards` - erzeugt aus eingefügtem Lernstoff-Text 5-8 Karteikarten (Frage/Antwort)
 - `PUT /auth/me/tone` - Tonfall des Agenten umstellen (`"locker"` oder `"streng"`)
 
-Alle KI-Endpoints (`summary`, `chat`, `workload`, `flashcards`, Foto-Erkennung) sind so gebaut,
+Alle KI-Endpoints (`summary`, `chat`, `workload`, Sprach-/Foto-Erkennung) sind so gebaut,
 dass ein nicht erreichbares Ollama nie zu einem Server-Absturz führt: `summary`/`chat` fallen
 auf eine reine Auflistung zurück, die anderen liefern einen sauberen `503`.
 

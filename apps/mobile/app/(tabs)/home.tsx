@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { fetchAgentSummary, fetchMyHomework, fetchWorkload, Homework, toggleComplete, Workload } from "../../lib/api";
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { deleteHomework, fetchAgentSummary, fetchMyHomework, fetchWorkload, Homework, toggleComplete, Workload } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 const LEVEL_COLOR: Record<Workload["level"], string> = { green: "#22c55e", yellow: "#f59e0b", red: "#ef4444" };
@@ -18,7 +18,7 @@ function formatDue(due: string) {
 }
 
 export default function HomeScreen() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [items, setItems] = useState<Homework[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [workload, setWorkload] = useState<Workload | null>(null);
@@ -50,6 +50,21 @@ export default function HomeScreen() {
     load();
   }
 
+  function handleDelete(hw: Homework) {
+    if (!token) return;
+    Alert.alert("Hausaufgabe löschen?", `"${hw.title}" wird entfernt.`, [
+      { text: "Abbrechen", style: "cancel" },
+      {
+        text: "Löschen",
+        style: "destructive",
+        onPress: async () => {
+          await deleteHomework(token, hw.id);
+          load();
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={styles.container}>
       {workload && (
@@ -73,8 +88,15 @@ export default function HomeScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Nichts offen. 🎉</Text>}
         renderItem={({ item }) => (
           <View style={[styles.card, item.completed_by_me && styles.cardDone]}>
-            <View style={[styles.tag, { backgroundColor: item.subject.color }]}>
-              <Text style={styles.tagText}>{item.subject.name}</Text>
+            <View style={styles.cardHeaderRow}>
+              <View style={[styles.tag, { backgroundColor: item.subject.color }]}>
+                <Text style={styles.tagText}>{item.subject.name}</Text>
+              </View>
+              {user?.is_class_admin && (
+                <Pressable onPress={() => handleDelete(item)} hitSlop={8}>
+                  <Text style={styles.deleteText}>Löschen</Text>
+                </Pressable>
+              )}
             </View>
             <Text style={styles.cardTitle}>{item.title}</Text>
             {item.description ? <Text style={styles.cardDesc}>{item.description}</Text> : null}
@@ -102,8 +124,10 @@ const styles = StyleSheet.create({
   summaryText: { color: "#f2f3f5", fontSize: 15, lineHeight: 21 },
   card: { backgroundColor: "#171a21", borderRadius: 14, padding: 16 },
   cardDone: { opacity: 0.5 },
-  tag: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2, marginBottom: 6 },
+  cardHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  tag: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 },
   tagText: { color: "#0f1115", fontWeight: "700", fontSize: 12 },
+  deleteText: { color: "#ef4444", fontSize: 13, fontWeight: "600" },
   cardTitle: { color: "#f2f3f5", fontSize: 17, fontWeight: "600" },
   cardDesc: { color: "#9aa0aa", marginTop: 4 },
   due: { color: "#9aa0aa", marginTop: 8, fontSize: 13 },

@@ -638,40 +638,6 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 .chat-bubble.user { align-self: flex-end; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .chat-bubble.agent { align-self: flex-start; background: var(--surface-alt); }
 
-/* ---------- Flashcards ---------- */
-
-.flip-card { perspective: 1200px; margin-bottom: 12px; cursor: pointer; }
-.flip-card-inner {
-  position: relative;
-  width: 100%;
-  min-height: 110px;
-  transition: transform 0.45s ease;
-  transform-style: preserve-3d;
-}
-.flip-card:hover .flip-card-inner { transform: translateY(-1px); }
-.flip-card.flipped:hover .flip-card-inner { transform: rotateY(180deg); }
-.flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
-.flip-card-face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-}
-.flip-card-face.back {
-  transform: rotateY(180deg);
-  border-color: var(--accent);
-  background: var(--surface-alt);
-}
-.flip-card-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
-.flip-card-text { font-size: 15px; font-weight: 500; margin: 0; }
-
 /* ---------- Toggle group ---------- */
 
 .toggle-group { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow-sm); }

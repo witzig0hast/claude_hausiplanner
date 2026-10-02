@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   captureVoiceNote,
   createHomeworkWithRepeat,
+  deleteHomework,
   fetchMyHomework,
   fetchMySubjects,
   fetchPendingSuggestion,
@@ -17,7 +18,7 @@ import {
 import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
 import { SuggestionModal } from "../../components/SuggestionModal";
-import { ClockIcon, ListIcon, MicIcon, PlusIcon, TrendIcon } from "../../components/icons";
+import { ClockIcon, ListIcon, MicIcon, PlusIcon, TrashIcon, TrendIcon } from "../../components/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -151,6 +152,20 @@ function DashboardInner() {
     }
   }
 
+  async function handleDelete(hw: Homework) {
+    if (!token) return;
+    if (!confirm(`"${hw.title}" wirklich löschen?`)) return;
+    const previous = items;
+    setItems((prev) => prev.filter((i) => i.id !== hw.id));
+    try {
+      await deleteHomework(token, hw.id);
+      showToast("Hausaufgabe gelöscht");
+    } catch {
+      setItems(previous);
+      showToast("Konnte Hausaufgabe nicht löschen", "error");
+    }
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!token || !subjectId || !dueAt) return;
@@ -176,6 +191,7 @@ function DashboardInner() {
 
   if (!user) return null;
 
+  const isAdmin = user.is_class_admin;
   const openCount = items.filter((i) => !i.completed_by_me).length;
   const { today: dueTodayAll } = groupByDue(items.filter((i) => !i.completed_by_me));
   const dueTodayCount = dueTodayAll.length;
@@ -202,10 +218,21 @@ function DashboardInner() {
         <div className="stack">
           {group.map((hw) => (
             <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
-              <span className="subject-tag">
-                <span className="subject-dot" style={{ background: hw.subject.color }} />
-                {hw.subject.name}
-              </span>
+              <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+                <span className="subject-tag" style={{ marginBottom: 0 }}>
+                  <span className="subject-dot" style={{ background: hw.subject.color }} />
+                  {hw.subject.name}
+                </span>
+                {isAdmin && (
+                  <button
+                    className="ghost"
+                    title="Hausaufgabe löschen"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(hw); }}
+                  >
+                    <TrashIcon size={15} />
+                  </button>
+                )}
+              </div>
               <h3>{hw.title}</h3>
               {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
               <p className="due">
