@@ -136,8 +136,11 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f√
 
 ## Deployment auf deinem Heimserver
 
-1. `.env` im Projekt-Root anlegen mit `JWT_SECRET` (langer Zufallsstring) und `PUBLIC_API_URL`
-   (z.B. `https://homework-api.deinedomain.de`).
+1. `.env` im Projekt-Root anlegen mit `JWT_SECRET` (langer Zufallsstring), `PUBLIC_API_URL`
+   (z.B. `https://homework-api.deinedomain.de`) und `PUBLIC_WEB_URL` (z.B.
+   `https://homework.deinedomain.de`) - letzteres bestimmt, welche Domain in
+   Einladungslinks/Sharelinks landet (`.../login?invite=...`, `.../class/<id>`) statt
+   des Platzhalters `localhost:3000`.
 2. Ollama muss auf dem Host laufen (`ollama serve`, Modell z.B. mit `ollama pull llama3.1`
    vorher ziehen) - der Container erreicht es √ºber `host.docker.internal`.
 3. `docker compose up -d --build`
