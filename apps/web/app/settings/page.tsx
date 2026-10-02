@@ -225,7 +225,13 @@ export default function SettingsPage() {
         };
       });
       setTimetablePreview(drafts);
-      if (drafts.length === 0) setScanError("Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen.");
+      if (drafts.length === 0) {
+        setScanError("Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen.");
+      } else if (result.low_confidence) {
+        setScanError(
+          "Die Erkennung wirkt unsicher (z.B. gleiches Fach bei allen Stunden) - bitte jede Zeile vor dem Übernehmen genau prüfen."
+        );
+      }
     } catch (err) {
       setScanError((err as Error).message);
     } finally {

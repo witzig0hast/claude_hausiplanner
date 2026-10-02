@@ -19,3 +19,4 @@ class TimetableEntrySuggestion(BaseModel):
 class TimetableSuggestion(BaseModel):
     entries: list[TimetableEntrySuggestion]
     raw_model_output: str
+    low_confidence: bool = False

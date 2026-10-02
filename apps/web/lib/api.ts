@@ -190,6 +190,7 @@ export type TimetableEntrySuggestion = {
 export type TimetableSuggestion = {
   entries: TimetableEntrySuggestion[];
   raw_model_output: string;
+  low_confidence: boolean;
 };
 
 export async function extractTimetableFromImage(token: string, file: File): Promise<TimetableSuggestion> {
