@@ -27,6 +27,7 @@ import {
   fetchInvite,
   fetchMySubjects,
   setAgentTone,
+  updateCalendarEvent,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import {
@@ -41,14 +42,16 @@ import {
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
+function timeOf(iso: string) {
+  return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
 function formatEventTime(ev: CalendarEvent) {
   const start = new Date(ev.starts_at);
-  const end = new Date(ev.ends_at);
-  const time = (d: Date) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   if (ev.is_recurring_weekly && ev.weekday !== null) {
-    return `${WEEKDAYS[ev.weekday]} · ${time(start)}–${time(end)}`;
+    return `${WEEKDAYS[ev.weekday]} · ${timeOf(ev.starts_at)}–${timeOf(ev.ends_at)}`;
   }
-  return `${start.toLocaleDateString("de-DE")} · ${time(start)}–${time(end)}`;
+  return `${start.toLocaleDateString("de-DE")} · ${timeOf(ev.starts_at)}–${timeOf(ev.ends_at)}`;
 }
 
 export default function SettingsPage() {
@@ -70,8 +73,6 @@ export default function SettingsPage() {
   const [subjectColor, setSubjectColor] = useState("#3B82F6");
 
   const [eventTitle, setEventTitle] = useState("");
-  const [eventRecurring, setEventRecurring] = useState(true);
-  const [eventWeekday, setEventWeekday] = useState(0);
   const [eventDate, setEventDate] = useState("");
   const [eventStart, setEventStart] = useState("08:00");
   const [eventEnd, setEventEnd] = useState("08:45");
@@ -207,32 +208,62 @@ export default function SettingsPage() {
 
   async function handleAddEvent(e: React.FormEvent) {
     e.preventDefault();
-    if (!token || !eventTitle) return;
+    // Regelmäßige Unterrichtsstunden trägt man über den Stundenplan oben ein - dieses
+    // Formular ist nur noch für einmalige Termine (Ausflug, Elternabend, Vertretung o.ä.).
+    if (!token || !eventTitle || !eventDate) return;
     try {
-      let startsAt: string;
-      let endsAt: string;
-      if (eventRecurring) {
-        // Anchor recurring lessons on an arbitrary reference week - only weekday + time matter.
-        const refDate = "2026-01-05"; // a Monday
-        const dayOffset = eventWeekday;
-        const d = new Date(refDate);
-        d.setDate(d.getDate() + dayOffset);
-        const iso = d.toISOString().slice(0, 10);
-        startsAt = `${iso}T${eventStart}:00`;
-        endsAt = `${iso}T${eventEnd}:00`;
-      } else {
-        if (!eventDate) return;
-        startsAt = `${eventDate}T${eventStart}:00`;
-        endsAt = `${eventDate}T${eventEnd}:00`;
-      }
       await createCalendarEvent(token, {
         title: eventTitle,
-        starts_at: startsAt,
-        ends_at: endsAt,
-        is_recurring_weekly: eventRecurring,
-        weekday: eventRecurring ? eventWeekday : null,
+        starts_at: `${eventDate}T${eventStart}:00`,
+        ends_at: `${eventDate}T${eventEnd}:00`,
+        is_recurring_weekly: false,
+        weekday: null,
       });
       setEventTitle("");
+      setEventDate("");
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  function eventForSlot(weekday: number, period: LessonPeriod): CalendarEvent | undefined {
+    return events.find(
+      (ev) =>
+        ev.is_recurring_weekly &&
+        ev.weekday === weekday &&
+        timeOf(ev.starts_at) === period.start_time &&
+        timeOf(ev.ends_at) === period.end_time
+    );
+  }
+
+  async function handleGridAssign(weekday: number, period: LessonPeriod, subjectId: string) {
+    if (!token) return;
+    const existing = eventForSlot(weekday, period);
+    try {
+      if (!subjectId) {
+        if (existing) await deleteCalendarEvent(token, existing.id);
+      } else {
+        const subject = subjects.find((s) => s.id === subjectId);
+        if (!subject) return;
+        const refDate = "2026-01-05"; // a Monday - only weekday + time matter for recurring lessons
+        const day = new Date(refDate);
+        day.setDate(day.getDate() + weekday);
+        const iso = day.toISOString().slice(0, 10);
+        const payload = {
+          title: subject.name,
+          starts_at: `${iso}T${period.start_time}:00`,
+          ends_at: `${iso}T${period.end_time}:00`,
+          is_recurring_weekly: true,
+          weekday,
+          subject_id: subject.id,
+        };
+        if (existing) {
+          await updateCalendarEvent(token, existing.id, payload);
+        } else {
+          await createCalendarEvent(token, payload);
+        }
+      }
       refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -539,11 +570,11 @@ export default function SettingsPage() {
           <div className="card">
             <div className="card-header">
               <span className="card-header-icon"><CalendarIcon size={16} /></span>
-              <div className="card-header-title">Stundenplan / Kalender</div>
+              <div className="card-header-title">Stundenplan</div>
             </div>
             <p className="muted" style={{ marginBottom: 16 }}>
-              Da die WebUntis-API der Schule gesperrt ist, pflegst du den Stundenplan hier manuell -
-              oder lässt ihn aus einem Foto deines Wochenplans vorschlagen.
+              Die Schule stellt den Stundenplan nicht automatisch bereit - trage ihn hier einmalig
+              ein, oder lass ihn dir aus einem Foto vorschlagen.
             </p>
 
             <div className="card" style={{ background: "var(--surface-alt)", marginBottom: 16 }}>
@@ -586,6 +617,80 @@ export default function SettingsPage() {
               </form>
             </div>
 
+            <div className="card" style={{ background: "var(--surface-alt)", marginBottom: 16 }}>
+              <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
+                <BookIcon size={16} />
+                <p className="section-title" style={{ margin: 0 }}>Dein Stundenplan</p>
+              </div>
+              {periods.length === 0 ? (
+                <p className="muted" style={{ fontSize: 13 }}>
+                  Trage zuerst oben deine Unterrichtszeiten ein - dann kannst du hier für jede
+                  Stunde ein Fach auswählen.
+                </p>
+              ) : subjects.length === 0 ? (
+                <p className="muted" style={{ fontSize: 13 }}>
+                  Lege zuerst oben ein paar Fächer an - dann kannst du sie hier den Stunden zuordnen.
+                </p>
+              ) : (
+                <>
+                  <p className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
+                    Wähle pro Stunde das Fach aus. Rot markierte Felder sind noch leer.
+                  </p>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left", padding: "4px 6px", fontSize: 12, color: "var(--muted)" }}>
+                            Stunde
+                          </th>
+                          {WEEKDAYS.slice(0, 5).map((w) => (
+                            <th key={w} style={{ textAlign: "left", padding: "4px 6px", fontSize: 12, color: "var(--muted)" }}>
+                              {w}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {periods.map((p) => (
+                          <tr key={p.id}>
+                            <td style={{ padding: "4px 6px", fontSize: 12, whiteSpace: "nowrap", color: "var(--muted)" }}>
+                              {p.number}. Stunde<br />{p.start_time}–{p.end_time}
+                            </td>
+                            {WEEKDAYS.slice(0, 5).map((w, wi) => {
+                              const existing = eventForSlot(wi, p);
+                              return (
+                                <td key={w} style={{ padding: "4px 6px" }}>
+                                  <select
+                                    value={existing?.subject_id || ""}
+                                    onChange={(e) => handleGridAssign(wi, p, e.target.value)}
+                                    style={{
+                                      marginBottom: 0,
+                                      width: "100%",
+                                      minWidth: 110,
+                                      borderColor: existing ? undefined : "#ef4444",
+                                    }}
+                                  >
+                                    <option value="">{existing ? "– frei –" : "fehlt noch"}</option>
+                                    {subjects.map((s) => (
+                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <hr className="divider" />
+            <p className="field-label" style={{ marginBottom: 10 }}>
+              Oder: Stundenplan aus einem Foto vorschlagen lassen
+            </p>
             <p className="muted" style={{ marginBottom: 8, fontSize: 13 }}>
               Pro Foto nur EIN Wochentag (z.B. zugeschnitten oder einzeln fotografiert) - wähle
               zuerst den Tag, dann das Foto dazu. So muss die KI nur noch von oben nach unten
@@ -708,29 +813,15 @@ export default function SettingsPage() {
             )}
 
             <hr className="divider" />
-            <p className="field-label" style={{ marginBottom: 10 }}>Oder manuell eintragen</p>
+            <p className="field-label" style={{ marginBottom: 6 }}>Einmaliger Termin</p>
+            <p className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
+              Für Dinge, die nur einmal stattfinden (Ausflug, Elternabend, Vertretungsstunde).
+              Normale, wöchentliche Unterrichtsstunden trägst du oben im Stundenplan ein.
+            </p>
             <form onSubmit={handleAddEvent}>
               <label className="field-label">Titel</label>
-              <input placeholder="z.B. Mathe" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
-
-              <label className="row" style={{ marginBottom: 14, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={eventRecurring}
-                  onChange={(e) => setEventRecurring(e.target.checked)}
-                />
-                <span style={{ fontSize: 14 }}>Wöchentlich wiederkehrend (normale Unterrichtsstunde)</span>
-              </label>
-
-              {eventRecurring ? (
-                <select value={eventWeekday} onChange={(e) => setEventWeekday(Number(e.target.value))}>
-                  {WEEKDAYS.map((w, i) => (
-                    <option key={w} value={i}>{w}</option>
-                  ))}
-                </select>
-              ) : (
-                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-              )}
+              <input placeholder="z.B. Wandertag" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
+              <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
               <div className="row">
                 <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)} />
                 <input type="time" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} />
@@ -740,9 +831,15 @@ export default function SettingsPage() {
           </div>
 
           <div className="card">
-            {events.length === 0 && <p className="muted">Noch keine Termine.</p>}
+            <div className="card-header">
+              <span className="card-header-icon"><CalendarIcon size={16} /></span>
+              <div className="card-header-title">Einmalige Termine</div>
+            </div>
+            {events.filter((ev) => !ev.is_recurring_weekly).length === 0 && (
+              <p className="muted">Noch keine einmaligen Termine.</p>
+            )}
             <div className="stack">
-              {events.map((ev) => (
+              {events.filter((ev) => !ev.is_recurring_weekly).map((ev) => (
                 <div key={ev.id} className="row" style={{ justifyContent: "space-between" }}>
                   <span>{ev.title} <span className="faint">· {formatEventTime(ev)}</span></span>
                   <button className="ghost" onClick={() => handleDeleteEvent(ev.id)}>Löschen</button>

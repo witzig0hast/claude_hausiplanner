@@ -204,6 +204,27 @@ export async function createCalendarEvent(
   return res.json();
 }
 
+export async function updateCalendarEvent(
+  token: string,
+  eventId: string,
+  payload: {
+    title: string;
+    starts_at: string;
+    ends_at: string;
+    is_recurring_weekly: boolean;
+    weekday: number | null;
+    subject_id?: string | null;
+  }
+) {
+  const res = await fetch(`${API_BASE}/calendar/${eventId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Konnte Termin nicht ändern (nur Admin)");
+  return res.json();
+}
+
 export async function deleteCalendarEvent(token: string, eventId: string) {
   const res = await fetch(`${API_BASE}/calendar/${eventId}`, { method: "DELETE", headers: authHeaders(token) });
   if (!res.ok) throw new Error("Konnte Termin nicht löschen");
