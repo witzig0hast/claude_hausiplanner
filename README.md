@@ -202,8 +202,10 @@ Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadlin
 - `GET /planning?days_ahead=7` - freie Zeitfenster zwischen Kalendereinträgen +
   Vorschlag, wann welche offene Hausaufgabe reinpasst (früheste Deadline zuerst)
 - `POST /homework/extract-from-image` - Foto der Tafel/eines Aufgabenblatts an ein
-  Ollama-Vision-Modell (Standard: `llava`, per `HOMEWORK_OLLAMA_VISION_MODEL` änderbar)
-  schicken; liefert einen Vorschlag (Fach/Titel/Deadline), erstellt aber nichts automatisch
+  Ollama-Vision-Modell (Standard: `llava`, per `.env`: `VISION_MODEL=...` im Docker-Setup
+  bzw. `HOMEWORK_OLLAMA_VISION_MODEL=...` lokal änderbar - vorher mit `ollama pull <modell>`
+  ziehen) schicken; liefert einen Vorschlag (Fach/Titel/Deadline), erstellt aber nichts
+  automatisch
 - `POST /calendar/extract-from-image` (nur Admin) - gleiche Idee für den Stundenplan; in der
   Web-UI unter Einstellungen → Stundenplan/Kalender als Foto-Upload mit editierbarer Vorschau
   (Fach/Wochentag/Zeit pro erkannter Stunde, vor dem Anlegen noch korrigierbar)

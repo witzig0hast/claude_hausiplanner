@@ -18,6 +18,8 @@ services:
       HOMEWORK_DATABASE_URL: postgresql+psycopg://homework:homework@postgres:5432/homework
       HOMEWORK_JWT_SECRET: ${JWT_SECRET:?set a random secret in .env}
       HOMEWORK_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      HOMEWORK_OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
+      HOMEWORK_OLLAMA_VISION_MODEL: ${VISION_MODEL:-llava}
       HOMEWORK_OLLAMA_VOICE_MODEL: ${VOICE_MODEL:-}
       HOMEWORK_WEB_BASE_URL: ${PUBLIC_WEB_URL:-https://homework.example-domain.de}
       HOMEWORK_WHISPER_HOST: host.docker.internal
