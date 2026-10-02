@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -28,16 +28,27 @@ def list_events(user: User = Depends(require_class_member), db: Session = Depend
     )
 
 
+_VALID_WEEKDAYS = {"Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"}
+
+
 @router.post("/extract-from-image", response_model=TimetableSuggestion)
 async def extract_timetable(
     file: UploadFile = File(...),
+    weekday: str | None = Form(None),
     user: User = Depends(require_class_admin),
     db: Session = Depends(get_db),
 ):
     """Einmaliges Einscannen des Stundenplans -> Vorschläge, die der Admin vor dem
-    Speichern noch prüft/korrigiert (kein automatischer WebUntis-Sync möglich)."""
+    Speichern noch prüft/korrigiert (kein automatischer WebUntis-Sync möglich).
+
+    weekday, wenn gesetzt, sagt dem Modell, dass das Foto nur einen einzelnen Wochentag
+    zeigt - das Zuordnen von Wochentag UND Stunde gleichzeitig über eine ganze Wochentabelle
+    hinweg ist für lokale Vision-Modelle fehleranfällig, ein einzelner Tag von oben nach
+    unten zu lesen deutlich weniger."""
     if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/heic"):
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Nur Bilddateien werden unterstützt")
+    if weekday is not None and weekday not in _VALID_WEEKDAYS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Ungültiger Wochentag")
 
     image_bytes = await file.read()
     if len(image_bytes) > MAX_IMAGE_BYTES:
@@ -51,7 +62,7 @@ async def extract_timetable(
         for p in db.query(LessonPeriod).filter(LessonPeriod.school_class_id == user.school_class_id).all()
     ]
     try:
-        suggestion = await extract_timetable_from_image(image_bytes, subject_names, periods)
+        suggestion = await extract_timetable_from_image(image_bytes, subject_names, periods, weekday)
     except VisionUnavailableError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
     return TimetableSuggestion(**suggestion)

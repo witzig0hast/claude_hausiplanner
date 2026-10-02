@@ -87,6 +87,7 @@ export default function SettingsPage() {
   };
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanWeekday, setScanWeekday] = useState(WEEKDAYS[0]);
   const [timetablePreview, setTimetablePreview] = useState<DraftLesson[] | null>(null);
   const [detectedSlots, setDetectedSlots] = useState<{ start: string; end: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -248,43 +249,53 @@ export default function SettingsPage() {
     if (!token) return;
     setScanning(true);
     setScanError(null);
-    setTimetablePreview(null);
     try {
-      const result = await extractTimetableFromImage(token, file);
-      const drafts: DraftLesson[] = result.entries.map((entry) => {
-        const weekdayIndex = WEEKDAYS.findIndex((w) => w.toLowerCase() === entry.weekday_guess?.toLowerCase());
-        return {
-          included: true,
-          subjectName: entry.subject_guess || "",
-          subjectRaw: entry.subject_raw || undefined,
-          weekday: weekdayIndex >= 0 ? weekdayIndex : 0,
-          start: /^\d{2}:\d{2}$/.test(entry.starts_at_guess) ? entry.starts_at_guess : "08:00",
-          end: /^\d{2}:\d{2}$/.test(entry.ends_at_guess) ? entry.ends_at_guess : "08:45",
-        };
-      });
-      setTimetablePreview(drafts);
+      // Scanned per weekday on purpose: a model asked to place lessons on a full week table
+      // has to get both the weekday AND the period right for every cell, which is where it
+      // kept going wrong. Fixing the weekday here (from the dropdown, not the model) turns
+      // each scan into a much simpler top-to-bottom read of a single day.
+      const result = await extractTimetableFromImage(token, file, scanWeekday);
+      const weekdayIndex = WEEKDAYS.findIndex((w) => w === scanWeekday);
+      const drafts: DraftLesson[] = result.entries.map((entry) => ({
+        included: true,
+        subjectName: entry.subject_guess || "",
+        subjectRaw: entry.subject_raw || undefined,
+        weekday: weekdayIndex >= 0 ? weekdayIndex : 0,
+        start: /^\d{2}:\d{2}$/.test(entry.starts_at_guess) ? entry.starts_at_guess : "08:00",
+        end: /^\d{2}:\d{2}$/.test(entry.ends_at_guess) ? entry.ends_at_guess : "08:45",
+      }));
+      // Accumulate across days instead of replacing - the admin scans one day at a time and
+      // reviews/applies everything together at the end.
+      setTimetablePreview((prev) => [...(prev || []), ...drafts]);
 
-      const seenSlots = new Set<string>();
-      const slots: { start: string; end: string }[] = [];
-      for (const d of drafts) {
-        const key = `${d.start}|${d.end}`;
-        if (!seenSlots.has(key)) {
-          seenSlots.add(key);
-          slots.push({ start: d.start, end: d.end });
+      setDetectedSlots((prev) => {
+        const seen = new Set(prev.map((s) => `${s.start}|${s.end}`));
+        const merged = [...prev];
+        for (const d of drafts) {
+          const key = `${d.start}|${d.end}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push({ start: d.start, end: d.end });
+          }
         }
-      }
-      slots.sort((a, b) => a.start.localeCompare(b.start));
-      setDetectedSlots(slots);
+        return merged.sort((a, b) => a.start.localeCompare(b.start));
+      });
+
       if (drafts.length === 0) {
         const preview = result.raw_model_output?.trim().slice(0, 300);
         setScanError(
-          "Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen." +
+          `Konnte für ${scanWeekday} keine Stunden aus dem Foto erkennen - bitte manuell eintragen.` +
             (preview ? ` (Modell-Antwort: "${preview}${result.raw_model_output.length > 300 ? "…" : ""}")` : "")
         );
       } else if (result.low_confidence) {
         setScanError(
-          "Die Erkennung wirkt unsicher (z.B. gleiches Fach bei allen Stunden) - bitte jede Zeile vor dem Übernehmen genau prüfen."
+          `Die Erkennung für ${scanWeekday} wirkt unsicher (z.B. gleiches Fach bei allen Stunden) - bitte jede Zeile vor dem Übernehmen genau prüfen.`
         );
+      } else {
+        // Nudge the dropdown to the next weekday so scanning the whole week is just
+        // "pick a file" repeated five times.
+        const nextIndex = WEEKDAYS.findIndex((w) => w === scanWeekday) + 1;
+        if (nextIndex >= 0 && nextIndex < 5) setScanWeekday(WEEKDAYS[nextIndex]);
       }
     } catch (err) {
       setScanError((err as Error).message);
@@ -319,6 +330,8 @@ export default function SettingsPage() {
         });
       }
       setTimetablePreview(null);
+      setDetectedSlots([]);
+      setScanWeekday(WEEKDAYS[0]);
       refresh();
     } catch (err) {
       setScanError((err as Error).message);
@@ -573,7 +586,22 @@ export default function SettingsPage() {
               </form>
             </div>
 
-            <div className="row" style={{ marginBottom: 8 }}>
+            <p className="muted" style={{ marginBottom: 8, fontSize: 13 }}>
+              Pro Foto nur EIN Wochentag (z.B. zugeschnitten oder einzeln fotografiert) - wähle
+              zuerst den Tag, dann das Foto dazu. So muss die KI nur noch von oben nach unten
+              lesen, statt Wochentag und Stunde gleichzeitig zu erraten.
+            </p>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <select
+                value={scanWeekday}
+                onChange={(e) => setScanWeekday(e.target.value)}
+                style={{ marginBottom: 0 }}
+                disabled={scanning}
+              >
+                {WEEKDAYS.slice(0, 5).map((w) => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
+              </select>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -586,7 +614,7 @@ export default function SettingsPage() {
                 disabled={scanning}
               />
             </div>
-            {scanning && <p className="faint" style={{ marginBottom: 12 }}>Stundenplan wird erkannt...</p>}
+            {scanning && <p className="faint" style={{ marginBottom: 12 }}>Stundenplan für {scanWeekday} wird erkannt...</p>}
             {scanError && <p style={{ color: "#f19999", marginBottom: 12 }}>{scanError}</p>}
 
             {timetablePreview && timetablePreview.length > 0 && (
@@ -669,6 +697,7 @@ export default function SettingsPage() {
                     onClick={() => {
                       setTimetablePreview(null);
                       setDetectedSlots([]);
+                      setScanWeekday(WEEKDAYS[0]);
                     }}
                   >
                     Verwerfen

@@ -223,9 +223,14 @@ export type TimetableSuggestion = {
   low_confidence: boolean;
 };
 
-export async function extractTimetableFromImage(token: string, file: File): Promise<TimetableSuggestion> {
+export async function extractTimetableFromImage(
+  token: string,
+  file: File,
+  weekday?: string
+): Promise<TimetableSuggestion> {
   const form = new FormData();
   form.append("file", file);
+  if (weekday) form.append("weekday", weekday);
   const res = await fetch(`${API_BASE}/calendar/extract-from-image`, {
     method: "POST",
     headers: authHeaders(token),

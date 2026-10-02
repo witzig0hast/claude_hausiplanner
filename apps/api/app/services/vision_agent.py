@@ -74,6 +74,49 @@ Beispiel-Antwort: {{"entries": [{{"subject_guess": "E", "weekday_guess": "Montag
 Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevorzuge diese bei Übereinstimmung): {subjects}
 """
 
+# Mapping every lesson's weekday AND period in one pass over the full week table asks a local
+# vision model to track a 2D grid position - in practice this is where most of its mistakes
+# come from, not the subject OCR. Scanning one weekday column at a time turns that into a
+# much easier 1D "read top to bottom" task - the weekday is given, never guessed by the model.
+SINGLE_DAY_TIMETABLE_PROMPT_WITH_PERIODS = """Du bist ein OCR-Assistent. Du siehst ein Foto des Stundenplans für
+GENAU EINEN Wochentag: {weekday}. Das Bild zeigt nur diese eine Spalte/diesen einen Tag -
+gehe von der ersten (frühesten) bis zur letzten (spätesten) Unterrichtsstunde von oben nach
+unten durch und erfasse JEDE belegte Stunde, die du siehst - überspringe keine, höre nicht
+vorzeitig auf. Lässt sich eine einzelne Zelle nicht lesen, lasse nur diese eine weg statt zu
+raten, aber brich die Erfassung dadurch nicht ab.
+
+{cell_instructions}
+
+Diese Schule hat folgenden festen Stunden-Raster. Ordne jede erkannte Stunde anhand ihrer
+Position von oben (früh) nach unten (spät) genau einer dieser Nummern zu - erfinde oder
+schätze NIEMALS selbst eine Uhrzeit, gib ausschließlich die Nummer aus dieser Liste zurück:
+{periods}
+
+Gib ausschließlich das folgende JSON-Objekt zurück, ohne Fließtext davor oder danach:
+{{"entries": [{{"subject_guess": "<Fach-Kürzel aus Zeile 2 der Zelle, nicht der Lehrername>", "period_number": <Nummer aus dem Stunden-Raster oben, als Zahl>}}]}}
+
+Beispiel-Antwort: {{"entries": [{{"subject_guess": "E", "period_number": 1}}]}}
+
+Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevorzuge diese bei Übereinstimmung): {subjects}
+"""
+
+SINGLE_DAY_TIMETABLE_PROMPT = """Du bist ein OCR-Assistent. Du siehst ein Foto des Stundenplans für
+GENAU EINEN Wochentag: {weekday}. Das Bild zeigt nur diese eine Spalte/diesen einen Tag -
+gehe von der ersten (frühesten) bis zur letzten (spätesten) Unterrichtsstunde von oben nach
+unten durch und erfasse JEDE belegte Stunde, die du siehst - überspringe keine, höre nicht
+vorzeitig auf. Lässt sich eine einzelne Zelle nicht lesen, lasse nur diese eine weg statt zu
+raten, aber brich die Erfassung dadurch nicht ab.
+
+{cell_instructions}
+
+Gib ausschließlich das folgende JSON-Objekt zurück, ohne Fließtext davor oder danach:
+{{"entries": [{{"subject_guess": "<Fach-Kürzel aus Zeile 2 der Zelle, nicht der Lehrername>", "starts_at_guess": "<HH:MM>", "ends_at_guess": "<HH:MM>"}}]}}
+
+Beispiel-Antwort: {{"entries": [{{"subject_guess": "E", "starts_at_guess": "08:00", "ends_at_guess": "08:45"}}]}}
+
+Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevorzuge diese bei Übereinstimmung): {subjects}
+"""
+
 # Words the vision model sometimes echoes from the instructions themselves (a known llava
 # failure mode) instead of actually reading the image - never plausible subject names.
 _HALLUCINATION_MARKERS = {"nur", "ja", "nein", "kein", "keine", "unbekannt", "fach", "leer"}
@@ -209,19 +252,36 @@ async def extract_timetable_from_image(
     image_bytes: bytes,
     known_subjects: list[str] | None = None,
     known_periods: list[dict] | None = None,
+    known_weekday: str | None = None,
 ) -> dict:
     """known_periods, if the admin has set up the class's lesson-time grid, is a list of
     {"number": int, "start_time": "HH:MM", "end_time": "HH:MM"}. When present, the model is
     asked for a period number instead of a time - the time itself then always comes from
-    this admin-entered grid, never from the model, so it can't be misread."""
+    this admin-entered grid, never from the model, so it can't be misread.
+
+    known_weekday, if the photo shows only a single day's column (recommended), fixes the
+    weekday server-side instead of asking the model to classify it: a full week table makes
+    the model track both weekday AND period for every cell, a 2D position it frequently gets
+    wrong, while a single day only needs a 1D top-to-bottom read."""
     periods_by_number = {p["number"]: p for p in (known_periods or [])}
     subjects_text = ", ".join(known_subjects or []) or "keine hinterlegt"
+    periods_text = "\n".join(
+        f"{p['number']}. Stunde: {p['start_time']}–{p['end_time']}"
+        for p in sorted(periods_by_number.values(), key=lambda p: p["number"])
+    )
 
-    if periods_by_number:
-        periods_text = "\n".join(
-            f"{p['number']}. Stunde: {p['start_time']}–{p['end_time']}"
-            for p in sorted(periods_by_number.values(), key=lambda p: p["number"])
+    if known_weekday and periods_by_number:
+        prompt = SINGLE_DAY_TIMETABLE_PROMPT_WITH_PERIODS.format(
+            cell_instructions=_TIMETABLE_CELL_INSTRUCTIONS,
+            periods=periods_text,
+            subjects=subjects_text,
+            weekday=known_weekday,
         )
+    elif known_weekday:
+        prompt = SINGLE_DAY_TIMETABLE_PROMPT.format(
+            cell_instructions=_TIMETABLE_CELL_INSTRUCTIONS, subjects=subjects_text, weekday=known_weekday
+        )
+    elif periods_by_number:
         prompt = TIMETABLE_PROMPT_WITH_PERIODS.format(
             cell_instructions=_TIMETABLE_CELL_INSTRUCTIONS, periods=periods_text, subjects=subjects_text
         )
@@ -238,6 +298,10 @@ async def extract_timetable_from_image(
         parsed = {"entries": _extract_partial_entries(raw)}
 
     raw_entries = parsed.get("entries") or []
+    if known_weekday:
+        # The model was never asked for a weekday in single-day mode - set it here instead
+        # of trusting anything it might have added on its own.
+        raw_entries = [{**entry, "weekday_guess": known_weekday} for entry in raw_entries]
     if periods_by_number:
         # Resolve each lesson's time from the admin-entered grid by its period number -
         # the model never gets to invent or misread a time on its own. An out-of-range or
