@@ -14,6 +14,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState(inviteFromLink ?? "");
+  const [className, setClassName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,7 +33,7 @@ export default function LoginForm() {
       const data =
         mode === "login"
           ? await login(email, password)
-          : await register(email, password, displayName, inviteCode || undefined);
+          : await register(email, password, displayName, inviteCode || undefined, className || undefined);
       localStorage.setItem("hausiplanner_token", data.access_token);
       localStorage.setItem("hausiplanner_user", JSON.stringify(data.user));
       router.push("/dashboard");
@@ -85,6 +86,17 @@ export default function LoginForm() {
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
             />
+
+            {!inviteCode && (
+              <>
+                <label className="field-label">Klassenname</label>
+                <input
+                  placeholder="z.B. 8b Gymnasium Musterstadt"
+                  value={className}
+                  onChange={(e) => setClassName(e.target.value)}
+                />
+              </>
+            )}
           </>
         )}
 

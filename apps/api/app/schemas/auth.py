@@ -8,6 +8,7 @@ class RegisterRequest(BaseModel):
     display_name: str
     password: str
     invite_code: str | None = None
+    class_name: str | None = None  # only used when invite_code is absent (new class)
 
 
 class LoginRequest(BaseModel):

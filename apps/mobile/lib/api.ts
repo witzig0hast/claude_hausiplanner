@@ -45,11 +45,17 @@ export async function login(email: string, password: string) {
   return handle<{ access_token: string; user: User }>(res);
 }
 
-export async function register(email: string, password: string, display_name: string, invite_code?: string) {
+export async function register(
+  email: string,
+  password: string,
+  display_name: string,
+  invite_code?: string,
+  class_name?: string
+) {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, display_name, invite_code }),
+    body: JSON.stringify({ email, password, display_name, invite_code, class_name }),
   });
   return handle<{ access_token: string; user: User }>(res);
 }

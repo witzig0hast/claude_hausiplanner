@@ -59,12 +59,13 @@ export async function register(
   email: string,
   password: string,
   display_name: string,
-  invite_code?: string
+  invite_code?: string,
+  class_name?: string
 ) {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, display_name, invite_code }),
+    body: JSON.stringify({ email, password, display_name, invite_code, class_name }),
   });
   if (!res.ok) throw new Error(await errorMessage(res, "Registrierung fehlgeschlagen"));
   return res.json();

@@ -33,7 +33,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Invalid invite code")
     else:
         # First user with no invite code creates their own class and becomes its admin.
-        school_class = SchoolClass(name=f"{payload.display_name}'s Klasse")
+        class_name = (payload.class_name or "").strip() or f"{payload.display_name}'s Klasse"
+        school_class = SchoolClass(name=class_name)
         db.add(school_class)
         db.flush()
         is_admin = True

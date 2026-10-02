@@ -21,6 +21,29 @@ def test_register_without_invite_creates_class_and_seeds_subjects(client):
     assert len(subjects.json()) == len(DEFAULT_SUBJECTS)
 
 
+def test_register_with_custom_class_name(client):
+    resp = client.post(
+        "/auth/register",
+        json={
+            "email": "admin@example.com",
+            "password": "secret123",
+            "display_name": "Admin",
+            "class_name": "8b Gymnasium Musterstadt",
+        },
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    school_class = client.get("/classes/me", headers=auth_headers(token))
+    assert school_class.json()["name"] == "8b Gymnasium Musterstadt"
+
+
+def test_register_without_class_name_falls_back_to_default(client):
+    resp = register(client)
+    token = resp.json()["access_token"]
+    school_class = client.get("/classes/me", headers=auth_headers(token))
+    assert school_class.json()["name"] == "Admin's Klasse"
+
+
 def test_login_with_wrong_password_fails(client):
     register(client)
     resp = client.post("/auth/login", json={"email": "admin@example.com", "password": "wrong"})

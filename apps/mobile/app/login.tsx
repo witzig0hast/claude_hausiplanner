@@ -13,6 +13,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [className, setClassName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +24,7 @@ export default function LoginScreen() {
       const data =
         mode === "login"
           ? await login(email, password)
-          : await register(email, password, displayName, inviteCode || undefined);
+          : await register(email, password, displayName, inviteCode || undefined, className || undefined);
       await setSession(data.access_token, data.user);
       registerForPushNotifications(data.access_token).catch(() => {});
       router.replace("/(tabs)/home");
@@ -71,6 +72,15 @@ export default function LoginScreen() {
             value={inviteCode}
             onChangeText={setInviteCode}
           />
+          {!inviteCode && (
+            <TextInput
+              style={styles.input}
+              placeholder="Klassenname (z.B. 8b Gymnasium Musterstadt)"
+              placeholderTextColor="#9aa0aa"
+              value={className}
+              onChangeText={setClassName}
+            />
+          )}
         </>
       )}
 
