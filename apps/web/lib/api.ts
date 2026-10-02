@@ -346,6 +346,58 @@ export async function downloadIcsExport(token: string) {
   URL.revokeObjectURL(url);
 }
 
+export type PendingSuggestion = {
+  id: string;
+  raw_transcript: string;
+  subject_guess: string | null;
+  subject: Subject | null;
+  title: string;
+  description: string | null;
+  due_date_guess: string | null;
+  created_at: string;
+};
+
+export async function captureVoiceNote(token: string, audio: Blob): Promise<PendingSuggestion> {
+  const form = new FormData();
+  form.append("file", audio, "note.webm");
+  const res = await fetch(`${API_BASE}/voice/capture`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: form,
+  });
+  if (!res.ok) {
+    if (res.status === 503) throw new Error("Spracherkennung oder KI-Agent ist gerade nicht erreichbar.");
+    if (res.status === 422) throw new Error("Konnte nichts aus der Aufnahme verstehen.");
+    throw new Error("Konnte Aufnahme nicht verarbeiten");
+  }
+  return res.json();
+}
+
+export async function fetchPendingSuggestion(token: string): Promise<PendingSuggestion | null> {
+  const res = await fetch(`${API_BASE}/voice/pending-suggestion`, { headers: authHeaders(token), cache: "no-store" });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Konnte Vorschlag nicht laden");
+  return res.json();
+}
+
+export async function applySuggestion(
+  token: string,
+  payload: { title: string; description?: string; due_at: string; subject_id: string; estimated_minutes?: number }
+): Promise<Homework> {
+  const res = await fetch(`${API_BASE}/voice/pending-suggestion/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Konnte Hausaufgabe nicht speichern");
+  return res.json();
+}
+
+export async function dismissSuggestion(token: string) {
+  const res = await fetch(`${API_BASE}/voice/pending-suggestion`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Vorschlag nicht verwerfen");
+}
+
 export async function createHomeworkWithRepeat(
   token: string,
   payload: {

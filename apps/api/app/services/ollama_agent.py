@@ -11,6 +11,9 @@ from app.models.homework import Homework
 from app.models.user import User
 
 _JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
+_JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
+
+WEEKDAYS_DE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
 FLASHCARDS_PROMPT_TEMPLATE = """Erzeuge aus folgendem Lernstoff 5-8 Karteikarten (Frage/Antwort) zum Üben.
 Antworte NUR mit einem JSON-Array in exakt diesem Format, ohne weitere Erklärung:
@@ -20,21 +23,37 @@ Lernstoff:
 {text}
 """
 
+VOICE_HOMEWORK_PROMPT_TEMPLATE = """Ein Schüler hat eine Hausaufgabe eingesprochen, hier die Transkription:
+"{transcript}"
+
+Heutiges Datum: {today} ({weekday})
+
+Extrahiere daraus eine Hausaufgabe und antworte NUR mit einem JSON-Objekt, ohne weitere
+Erklärung, in exakt diesem Format:
+{{"subject_guess": "<vermutetes Schulfach oder null>", "title": "<kurzer Titel der Aufgabe>", "description": "<Details, oder null>", "due_date_guess": "<Datum im Format JJJJ-MM-TT falls erkennbar (auch aus relativen Angaben wie \\"morgen\\" oder \\"nächsten Montag\\" ausgehend vom heutigen Datum), sonst null>"}}
+
+Nutze AUSSCHLIESSLICH, was in der Transkription gesagt wurde - erfinde keine Details, die dort
+nicht vorkommen. Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
+"""
+
 TONE_INSTRUCTIONS = {
     "locker": "Locker, freundlich, wie ein entspannter älterer Freund. Kein Alarmismus, kein erhobener Zeigefinger.",
     "streng": "Direkt und bestimmt, wie eine strenge aber faire Lehrkraft. Klar sagen, was ansteht, ohne unhöflich zu werden.",
 }
 
 SUMMARY_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {tone}
-Fasse kurz zusammen, was an Hausaufgaben ansteht. Nenne Fach, Deadline und ob es eng wird.
-Halte es unter 80 Wörtern, auf Deutsch. Das ist ein entspannter Hinweis, kein Alarm.
+Fasse in maximal 2 kurzen Sätzen (unter 35 Wörtern) zusammen, was an Hausaufgaben ansteht.
+Nutze AUSSCHLIESSLICH die unten gelisteten Hausaufgaben - erfinde keine zusätzlichen Fächer,
+Aufgaben, Zahlen oder Fristen, die dort nicht stehen. Wenn die Liste leer ist, sag das auch so.
+Auf Deutsch, ein entspannter Hinweis, kein Alarm.
 
 Offene Hausaufgaben von {name}:
 {items}
 """
 
 CHAT_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {tone}
-Antworte kurz und konkret auf Deutsch (max. 100 Wörter), basierend auf diesem Kontext.
+Antworte kurz und konkret auf Deutsch (max. 100 Wörter), basierend NUR auf dem Kontext unten -
+erfinde keine Hausaufgaben, Fächer oder Termine, die dort nicht auftauchen.
 Wenn die Frage nichts mit Hausaufgaben/Zeitplanung zu tun hat, beantworte sie trotzdem freundlich.
 
 Offene Hausaufgaben von {name}:
@@ -149,3 +168,31 @@ async def generate_flashcards(text: str) -> list[dict]:
     except json.JSONDecodeError:
         return []
     return [c for c in cards if isinstance(c, dict) and "question" in c and "answer" in c]
+
+
+async def extract_homework_from_voice(transcript: str, known_subjects: list[str]) -> dict:
+    """Turns a dictated voice note transcript into a homework suggestion - same shape as
+    the photo-based extraction (vision_agent.extract_homework_from_image)."""
+    today = datetime.utcnow()
+    prompt = VOICE_HOMEWORK_PROMPT_TEMPLATE.format(
+        transcript=transcript[:2000],
+        today=today.strftime("%Y-%m-%d"),
+        weekday=WEEKDAYS_DE[today.weekday()],
+        subjects=", ".join(known_subjects) or "keine hinterlegt",
+    )
+    raw = await _call_text_model(prompt)
+    if raw is None:
+        raise AgentUnavailableError(f"Ollama ({settings.ollama_base_url}) nicht erreichbar")
+    match = _JSON_OBJECT.search(raw)
+    if not match:
+        parsed = {"subject_guess": None, "title": transcript[:200], "description": None, "due_date_guess": None}
+    else:
+        try:
+            parsed = json.loads(match.group(0))
+        except json.JSONDecodeError:
+            parsed = {"subject_guess": None, "title": transcript[:200], "description": None, "due_date_guess": None}
+    parsed.setdefault("title", transcript[:200] or "Hausaufgabe")
+    parsed.setdefault("subject_guess", None)
+    parsed.setdefault("description", None)
+    parsed.setdefault("due_date_guess", None)
+    return parsed

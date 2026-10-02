@@ -12,7 +12,8 @@ Fünf Dienste, die dauerhaft laufen müssen, plus zwei einmalige Einrichtungssch
 | **Postgres** | Datenbank | Docker-Container (in `docker-compose.yml`) |
 | **API** (FastAPI) | Backend, das Web + Mobile ansprechen | Docker-Container |
 | **Web** (Next.js) | Die Website (öffentliche Ansicht + Login) | Docker-Container |
-| **Ollama** | KI-Modelle lokal (Zusammenfassung, Chat, Foto-Erkennung) | Direkt auf deinem Host (kein Container nötig, muss aber laufen: `ollama serve`) |
+| **Ollama** | KI-Modelle lokal (Zusammenfassung, Chat, Foto-/Sprach-Erkennung) | Direkt auf deinem Host (kein Container nötig, muss aber laufen: `ollama serve`) |
+| **Wyoming-ASR** (z.B. `wyoming-whisper`) | Spracherkennung für die Einsprech-Funktion | Optional, eigener Dienst auf deinem Host/Netzwerk (z.B. Port 10300) |
 | **Reverse Proxy** (Caddy/Traefik) | HTTPS-Zertifikat + Domain-Routing zu Web/API | Auf deinem Host, vor allem anderen |
 
 Einmalig: **Domain + DNS** auf deinen Server zeigen lassen, und den **Superadmin-Schlüssel**
@@ -163,6 +164,28 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f�
   nicht erledigter Hausaufgabe genau eine ruhige Push-Nachricht (keine Eskalation, kein Alarm)
   sowie täglich einen von Ollama zusammengefassten Abend-Digest.
 
+## Hausaufgaben einsprechen (Spracherkennung)
+
+Statt Formular ausfüllen: Mikrofon-Knopf im Dashboard drücken, Hausaufgabe diktieren ("Mathe,
+Seite 42 Aufgabe 3, bis morgen") - das Audio wird an einen lokalen
+[Wyoming](https://github.com/rhasspy/wyoming)-ASR-Dienst (z.B. `wyoming-whisper`) zur
+Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadline).
+
+- **Setup:** `HOMEWORK_WHISPER_HOST`/`HOMEWORK_WHISPER_PORT` auf deinen Wyoming-ASR-Dienst
+  zeigen lassen (im Docker-Setup per `.env`: `WHISPER_PORT=10300` falls abweichend vom
+  Standard). `HOMEWORK_OLLAMA_MODEL` kannst du auf ein Modell setzen, das du bereits lokal
+  laufen hast (z.B. `hermes3:8b`) - es wird für Zusammenfassung, Chat und diese Strukturierung
+  gleichermaßen verwendet.
+- **Account-bezogen, nicht Tab-bezogen:** Der Vorschlag wird serverseitig pro Nutzer
+  zwischengespeichert (`pending_homework_suggestions`), nicht nur im Browser. Schließt du die
+  Seite direkt nach dem Einsprechen und öffnest sie Stunden später auf einem anderen Gerät,
+  taucht derselbe Vorschlag als Bestätigungs-Popup wieder auf - bis du ihn übernimmst oder
+  verwirfst.
+- Erstellt **nichts automatisch** - wie bei der Foto-Erkennung bestätigst/bearbeitest du den
+  Vorschlag, bevor er als echte Hausaufgabe gespeichert wird.
+- Ohne erreichbaren Whisper- oder Ollama-Dienst liefert `/voice/capture` einen sauberen `503`
+  statt eines Absturzes.
+
 ## Weitere Endpoints
 
 - `GET /classes/me/invite` - Sharelink + Invite-Code für Mitschüler
@@ -172,6 +195,12 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f�
   Ollama-Vision-Modell (Standard: `llava`, per `HOMEWORK_OLLAMA_VISION_MODEL` änderbar)
   schicken; liefert einen Vorschlag (Fach/Titel/Deadline), erstellt aber nichts automatisch
 - `POST /calendar/extract-from-image` (nur Admin) - gleiche Idee für den Stundenplan
+- `POST /voice/capture` - Audio-Datei einer eingesprochenen Hausaufgabe; liefert einen
+  Vorschlag und legt ihn pro Nutzer als "offen" ab
+- `GET /voice/pending-suggestion` - der aktuell offene Sprach-Vorschlag des Nutzers (falls
+  vorhanden), fürs Bestätigungs-Popup beim nächsten Besuch
+- `POST /voice/pending-suggestion/apply` / `DELETE /voice/pending-suggestion` - Vorschlag
+  übernehmen (legt die Hausaufgabe an) bzw. verwerfen
 - `POST /agent/chat` - freie Frage an den Agenten, mit Kontext aus offenen Hausaufgaben +
   Kalender (z.B. "Wie viel Zeit brauche ich noch für Mathe?")
 - `GET /agent/workload` - Ampel (grün/gelb/rot), wie viel Zeit die fälligen Hausaufgaben

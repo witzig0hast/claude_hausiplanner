@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import agent, auth, calendar, classes, flashcards, homework, planning, sys_admin
+from app.routers import agent, auth, calendar, classes, flashcards, homework, planning, sys_admin, voice
 from app.services.scheduler import start_scheduler
 
 
@@ -33,6 +33,7 @@ app.include_router(agent.router)
 app.include_router(planning.router)
 app.include_router(sys_admin.router)
 app.include_router(flashcards.router)
+app.include_router(voice.router)
 
 
 @app.get("/health")

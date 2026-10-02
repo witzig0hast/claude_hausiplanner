@@ -19,6 +19,8 @@ services:
       HOMEWORK_JWT_SECRET: ${JWT_SECRET:?set a random secret in .env}
       HOMEWORK_OLLAMA_BASE_URL: http://host.docker.internal:11434
       HOMEWORK_WEB_BASE_URL: ${PUBLIC_WEB_URL:-https://homework.example-domain.de}
+      HOMEWORK_WHISPER_HOST: host.docker.internal
+      HOMEWORK_WHISPER_PORT: ${WHISPER_PORT:-10300}
     ports:
       - "8000:8000"
     extra_hosts:

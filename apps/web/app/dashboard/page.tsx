@@ -1,19 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  captureVoiceNote,
   createHomeworkWithRepeat,
   fetchMyHomework,
   fetchMySubjects,
+  fetchPendingSuggestion,
   Homework,
+  PendingSuggestion,
   Subject,
   toggleComplete,
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
-import { ClockIcon, ListIcon, PlusIcon, TrendIcon } from "../../components/icons";
+import { SuggestionModal } from "../../components/SuggestionModal";
+import { ClockIcon, ListIcon, MicIcon, PlusIcon, TrendIcon } from "../../components/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -62,6 +66,12 @@ function DashboardInner() {
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
 
+  const [suggestion, setSuggestion] = useState<PendingSuggestion | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
     const u = localStorage.getItem("hausiplanner_user");
@@ -76,7 +86,45 @@ function DashboardInner() {
   useEffect(() => {
     if (!token) return;
     refresh();
+    // Account-bezogen, nicht Tab-bezogen: ein zuvor eingesprochener, noch nicht
+    // bestätigter Vorschlag taucht auch Stunden später / auf einem anderen Gerät wieder auf.
+    fetchPendingSuggestion(token).then(setSuggestion).catch(() => {});
   }, [token]);
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        if (!token) return;
+        setTranscribing(true);
+        try {
+          const result = await captureVoiceNote(token, blob);
+          setSuggestion(result);
+        } catch (err) {
+          showToast((err as Error).message, "error");
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      showToast("Kein Mikrofonzugriff möglich.", "error");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
 
   async function refresh() {
     if (!token) return;
@@ -187,11 +235,24 @@ function DashboardInner() {
             {openCount === 0 ? "Keine offenen Hausaufgaben." : `${openCount} offene Hausaufgabe${openCount === 1 ? "" : "n"}.`}
           </p>
         </div>
-        <button onClick={() => setShowForm(!showForm)}>
-          <span className="row" style={{ gap: 6 }}>
-            <PlusIcon size={15} /> Hausaufgabe
-          </span>
-        </button>
+        <div className="row">
+          <button
+            className={`mic-button ${recording ? "recording" : ""}`}
+            onClick={recording ? stopRecording : startRecording}
+            disabled={transcribing}
+            title={recording ? "Aufnahme stoppen" : "Hausaufgabe einsprechen"}
+          >
+            <span className="row" style={{ gap: 6 }}>
+              <MicIcon size={15} />
+              {transcribing ? "Wird erkannt..." : recording ? "Stoppen" : "Einsprechen"}
+            </span>
+          </button>
+          <button onClick={() => setShowForm(!showForm)}>
+            <span className="row" style={{ gap: 6 }}>
+              <PlusIcon size={15} /> Hausaufgabe
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="stat-grid">
@@ -296,6 +357,20 @@ function DashboardInner() {
       {renderGroup("Heute", today)}
       {renderGroup("Diese Woche", thisWeek)}
       {renderGroup("Später", later)}
+
+      {suggestion && token && (
+        <SuggestionModal
+          token={token}
+          suggestion={suggestion}
+          subjects={subjects}
+          onApplied={() => {
+            setSuggestion(null);
+            refresh();
+            showToast("Hausaufgabe gespeichert");
+          }}
+          onDismissed={() => setSuggestion(null)}
+        />
+      )}
     </AppShell>
   );
 }

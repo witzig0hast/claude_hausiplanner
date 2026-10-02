@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
     ollama_vision_model: str = "llava"
+    whisper_host: str = "localhost"
+    whisper_port: int = 10300
     expo_access_token: str | None = None
     digest_hour_local: int = 19  # daily digest push, 24h local time
     web_base_url: str = "http://localhost:3000"
