@@ -454,6 +454,22 @@ a:hover { color: var(--accent-bright); }
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease), transform 0.15s var(--ease);
+  animation: card-in 0.35s var(--ease) backwards;
+}
+
+/* A gentle stagger for the first run of cards on a page, so the whole screen doesn't
+   just appear at once - caps out after a handful so a long page doesn't visibly crawl in. */
+.card:nth-of-type(1) { animation-delay: 0ms; }
+.card:nth-of-type(2) { animation-delay: 40ms; }
+.card:nth-of-type(3) { animation-delay: 80ms; }
+.card:nth-of-type(4) { animation-delay: 120ms; }
+.card:nth-of-type(5) { animation-delay: 160ms; }
+.card:nth-of-type(6) { animation-delay: 200ms; }
+.card:nth-of-type(n+7) { animation-delay: 220ms; }
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .card.interactive:hover {
@@ -522,7 +538,7 @@ button {
 }
 
 button:hover { background: var(--accent-bright); border-color: var(--accent-bright); transform: translateY(-1px); }
-button:active { background: var(--accent-hover); transform: translateY(0); }
+button:active { background: var(--accent-hover); transform: translateY(0) scale(0.97); }
 button:disabled { opacity: 0.5; cursor: default; transform: none; }
 
 button.secondary {
@@ -570,7 +586,7 @@ input, textarea, select {
   background: var(--bg);
   color: var(--text);
   margin-bottom: 12px;
-  transition: border-color 0.1s ease;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
 input::placeholder, textarea::placeholder { color: var(--faint); }
@@ -578,6 +594,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--accent); }
@@ -589,6 +606,23 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 .row.wrap { flex-wrap: wrap; }
 .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 12px; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* Rows inside a .stack (homework items, members, subjects, events, ...) fade/slide in with
+   a short stagger instead of popping in all at once. */
+.stack > * {
+  animation: list-item-in 0.3s var(--ease) backwards;
+}
+.stack > *:nth-child(1) { animation-delay: 0ms; }
+.stack > *:nth-child(2) { animation-delay: 30ms; }
+.stack > *:nth-child(3) { animation-delay: 60ms; }
+.stack > *:nth-child(4) { animation-delay: 90ms; }
+.stack > *:nth-child(5) { animation-delay: 120ms; }
+.stack > *:nth-child(n+6) { animation-delay: 140ms; }
+
+@keyframes list-item-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 .muted { color: var(--muted); }
 .faint { color: var(--faint); font-size: 13px; }
 .section-title {
@@ -631,6 +665,32 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 .pill.yellow { color: #f0b84e; background: var(--amber-bg); border: 1px solid #4a3714; }
 .pill.red { color: #f19999; background: var(--red-bg); border: 1px solid #4d2323; }
 
+.pill, .subject-tag {
+  animation: pop-in 0.25s var(--ease) backwards;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* A calm, looping pulse for "läuft gerade"-style status text (KI denkt nach, Scan läuft, ...).
+   Add className="pulse" next to a loading/processing message. */
+.pulse { animation: pulse-opacity 1.3s ease-in-out infinite; }
+
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 /* ---------- Chat ---------- */
 
 .chat-log { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
@@ -648,15 +708,23 @@ input[type="color"] { padding: 4px; cursor: pointer; }
   color: var(--muted);
   padding: 9px 18px;
   box-shadow: none;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
 }
 .toggle-group button:hover { transform: none; }
+.toggle-group button:active { transform: none; }
 .toggle-group button:not(:last-child) { border-right: 1px solid var(--border); }
 .toggle-group button:hover { background: var(--surface-alt); color: var(--text); }
 .toggle-group button.active {
   background: var(--text);
   color: var(--bg);
+  animation: toggle-pop 0.2s var(--ease);
 }
 .toggle-group button.active:hover { background: var(--text); }
+
+@keyframes toggle-pop {
+  from { transform: scale(0.95); }
+  to { transform: scale(1); }
+}
 
 /* ---------- Numbered steps ---------- */
 

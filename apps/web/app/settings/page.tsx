@@ -757,7 +757,7 @@ export default function SettingsPage() {
                 disabled={scanning}
               />
             </div>
-            {scanning && <p className="faint" style={{ marginBottom: 12 }}>Stundenplan für {scanWeekday} wird erkannt...</p>}
+            {scanning && <p className="faint pulse" style={{ marginBottom: 12 }}>Stundenplan für {scanWeekday} wird erkannt...</p>}
             {scanError && <p style={{ color: "#f19999", marginBottom: 12 }}>{scanError}</p>}
 
             {timetablePreview && timetablePreview.length > 0 && (

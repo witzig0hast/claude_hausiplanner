@@ -290,7 +290,7 @@ function DashboardInner() {
             disabled={transcribing}
             title={recording ? "Aufnahme stoppen" : "Hausaufgabe einsprechen"}
           >
-            <span className="row" style={{ gap: 6 }}>
+            <span className={`row ${transcribing ? "pulse" : ""}`} style={{ gap: 6 }}>
               <MicIcon size={15} />
               {transcribing ? "Wird erkannt..." : recording ? "Stoppen" : "Einsprechen"}
             </span>
