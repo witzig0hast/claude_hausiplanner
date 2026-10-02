@@ -19,12 +19,17 @@ VOICE_HOMEWORK_PROMPT_TEMPLATE = """Ein Schüler hat eine Hausaufgabe eingesproc
 
 Heutiges Datum: {today} ({weekday})
 
-Extrahiere daraus eine Hausaufgabe und antworte NUR mit einem JSON-Objekt, ohne weitere
-Erklärung, in exakt diesem Format:
-{{"subject_guess": "<vermutetes Schulfach oder null>", "title": "<kurzer Titel der Aufgabe>", "description": "<Details, oder null>", "due_date_guess": "<Datum im Format JJJJ-MM-TT falls erkennbar (auch aus relativen Angaben wie \\"morgen\\" oder \\"nächsten Montag\\" ausgehend vom heutigen Datum), sonst null>"}}
+Deine einzige Aufgabe ist es, diese Transkription in Felder aufzuteilen - du erfindest nichts
+Neues, du gibst nur in anderer Form wieder, was dort wortwörtlich steht. Der "title" muss aus
+Wörtern bestehen, die tatsächlich in der Transkription vorkommen (z.B. das genannte Fach und
+die genannte Aufgabe) - niemals ein Thema, das dort nicht erwähnt wird.
 
-Nutze AUSSCHLIESSLICH, was in der Transkription gesagt wurde - erfinde keine Details, die dort
-nicht vorkommen. Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
+Antworte NUR mit einem JSON-Objekt, ohne weitere Erklärung, in exakt diesem Format:
+{{"subject_guess": "<im Transkript genanntes Schulfach oder null>", "title": "<kurzer Titel, nur aus Wörtern der Transkription>", "description": "<Details aus der Transkription, oder null>", "due_date_guess": "<Datum im Format JJJJ-MM-TT falls erkennbar (auch aus relativen Angaben wie \\"morgen\\" oder \\"nächsten Montag\\" ausgehend vom heutigen Datum), sonst null>"}}
+
+Beispiel: Transkript "Mathe, Seite 42 Aufgabe 3, bis morgen" -> {{"subject_guess": "Mathematik", "title": "Seite 42, Aufgabe 3", "description": null, "due_date_guess": "<morgiges Datum>"}}
+
+Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
 """
 
 TONE_INSTRUCTIONS = {
@@ -93,8 +98,10 @@ async def _call_text_model(
     payload: dict = {"model": model or settings.ollama_model, "prompt": prompt, "stream": False}
     if json_mode:
         payload["format"] = "json"
+    options: dict = {"temperature": 0}
     if num_predict is not None:
-        payload["options"] = {"num_predict": num_predict}
+        options["num_predict"] = num_predict
+    payload["options"] = options
     async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=60.0) as client:
         try:
             response = await client.post("/api/generate", json=payload)
@@ -157,6 +164,23 @@ class AgentUnavailableError(Exception):
     pass
 
 
+_STOPWORDS_DE = {
+    "der", "die", "das", "und", "oder", "für", "von", "mit", "auf", "aus", "ist", "sind",
+    "ein", "eine", "einen", "einem", "einer", "wir", "ich", "müssen", "muss", "dass", "auch",
+}
+
+
+def _shares_no_words_with(text: str, transcript: str) -> bool:
+    """Catches a model inventing an unrelated topic (e.g. transcript about a math exercise,
+    title about something else entirely) regardless of which model produced it - a cheap,
+    model-agnostic safety net alongside the prompt instructions."""
+    text_words = {w for w in re.findall(r"\w{4,}", text.lower())} - _STOPWORDS_DE
+    if not text_words:
+        return False
+    transcript_words = {w for w in re.findall(r"\w{4,}", transcript.lower())} - _STOPWORDS_DE
+    return text_words.isdisjoint(transcript_words)
+
+
 async def extract_homework_from_voice(transcript: str, known_subjects: list[str]) -> dict:
     """Turns a dictated voice note transcript into a homework suggestion - same shape as
     the photo-based extraction (vision_agent.extract_homework_from_image)."""
@@ -187,4 +211,12 @@ async def extract_homework_from_voice(transcript: str, known_subjects: list[str]
     parsed.setdefault("subject_guess", None)
     parsed.setdefault("description", None)
     parsed.setdefault("due_date_guess", None)
+
+    # The model invented a title/description with zero words from the actual transcript -
+    # a telltale hallucination. Fall back to the transcript itself rather than keep nonsense.
+    if _shares_no_words_with(parsed.get("title") or "", transcript):
+        parsed["title"] = transcript[:200] or "Hausaufgabe"
+    if parsed.get("description") and _shares_no_words_with(parsed["description"], transcript):
+        parsed["description"] = None
+
     return parsed
