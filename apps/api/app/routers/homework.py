@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, time, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
@@ -14,6 +14,7 @@ from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.homework import HomeworkCreate, HomeworkOut
 from app.schemas.vision import HomeworkSuggestion
+from app.services.scheduling import next_occurrence
 from app.services.vision_agent import VisionUnavailableError, extract_homework_from_image
 
 router = APIRouter(tags=["homework"])
@@ -26,15 +27,6 @@ def _serialize(hw: Homework, viewer_id: uuid.UUID | None) -> HomeworkOut:
     out.completed_count = len(hw.completions)
     out.completed_by_me = viewer_id is not None and any(c.user_id == viewer_id for c in hw.completions)
     return out
-
-
-def _next_occurrence(after: datetime, weekday: int, lesson_time: time) -> datetime:
-    """Next datetime strictly after `after` that falls on `weekday` at `lesson_time`."""
-    days_ahead = (weekday - after.weekday()) % 7
-    candidate = datetime.combine(after.date() + timedelta(days=days_ahead), lesson_time)
-    if candidate <= after:
-        candidate += timedelta(days=7)
-    return candidate
 
 
 @router.get("/public/classes/{class_id}/homework", response_model=list[HomeworkOut])
@@ -199,7 +191,7 @@ def postpone_to_next_lesson(
             "Kein wiederkehrender Stundenplan-Eintrag für dieses Fach hinterlegt",
         )
 
-    candidates = [_next_occurrence(hw.due_at, lesson.weekday, lesson.starts_at.time()) for lesson in lessons]
+    candidates = [next_occurrence(hw.due_at, lesson.weekday, lesson.starts_at.time()) for lesson in lessons]
     hw.due_at = min(candidates)
     db.commit()
     db.refresh(hw)

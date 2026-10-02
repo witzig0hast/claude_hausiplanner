@@ -378,6 +378,7 @@ export type PendingSuggestion = {
   title: string;
   description: string | null;
   due_date_guess: string | null;
+  due_time_guess: string | null;
   created_at: string;
 };
 

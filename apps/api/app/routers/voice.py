@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.deps import require_class_member
+from app.models.calendar_event import CalendarEvent
 from app.models.homework import Homework
 from app.models.subject import Subject
 from app.models.user import User
@@ -10,6 +13,7 @@ from app.models.voice_suggestion import PendingHomeworkSuggestion
 from app.schemas.homework import HomeworkOut
 from app.schemas.voice import ApplySuggestionRequest, PendingSuggestionOut
 from app.services.ollama_agent import AgentUnavailableError, extract_homework_from_voice
+from app.services.scheduling import next_occurrence
 from app.services.speech_agent import SpeechUnavailableError, transcribe_audio
 
 router = APIRouter(prefix="/voice", tags=["voice"])
@@ -56,6 +60,27 @@ async def capture_voice_note(
     if subject_guess:
         matched_subject = next((s for s in subjects if s.name.lower() == subject_guess.lower()), None)
 
+    due_date_guess = suggestion.get("due_date_guess")
+    due_time_guess = None
+    if suggestion.get("due_next_lesson") and matched_subject is not None:
+        # "bis zur nächsten Stunde" - resolved from the class's own timetable, never guessed
+        # by the model, so the exact day and time are always correct if a timetable exists.
+        lessons = (
+            db.query(CalendarEvent)
+            .filter(
+                CalendarEvent.school_class_id == user.school_class_id,
+                CalendarEvent.subject_id == matched_subject.id,
+                CalendarEvent.is_recurring_weekly.is_(True),
+                CalendarEvent.weekday.isnot(None),
+            )
+            .all()
+        )
+        if lessons:
+            now = datetime.utcnow()
+            next_lesson = min(next_occurrence(now, lesson.weekday, lesson.starts_at.time()) for lesson in lessons)
+            due_date_guess = next_lesson.strftime("%Y-%m-%d")
+            due_time_guess = next_lesson.strftime("%H:%M")
+
     existing = db.query(PendingHomeworkSuggestion).filter(PendingHomeworkSuggestion.user_id == user.id).first()
     if existing:
         db.delete(existing)
@@ -68,7 +93,8 @@ async def capture_voice_note(
         subject_id=matched_subject.id if matched_subject else None,
         title=suggestion.get("title") or transcript[:200],
         description=suggestion.get("description"),
-        due_date_guess=suggestion.get("due_date_guess"),
+        due_date_guess=due_date_guess,
+        due_time_guess=due_time_guess,
     )
     db.add(row)
     db.commit()

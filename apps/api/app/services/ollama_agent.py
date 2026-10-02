@@ -24,10 +24,19 @@ Neues, du gibst nur in anderer Form wieder, was dort wortwörtlich steht. Der "t
 Wörtern bestehen, die tatsächlich in der Transkription vorkommen (z.B. das genannte Fach und
 die genannte Aufgabe) - niemals ein Thema, das dort nicht erwähnt wird.
 
-Antworte NUR mit einem JSON-Objekt, ohne weitere Erklärung, in exakt diesem Format:
-{{"subject_guess": "<im Transkript genanntes Schulfach oder null>", "title": "<kurzer Titel, nur aus Wörtern der Transkription>", "description": "<Details aus der Transkription, oder null>", "due_date_guess": "<Datum im Format JJJJ-MM-TT falls erkennbar (auch aus relativen Angaben wie \\"morgen\\" oder \\"nächsten Montag\\" ausgehend vom heutigen Datum), sonst null>"}}
+Fasse den Titel so kurz wie möglich mit gängigen Abkürzungen: "Seite" -> "S.", eine genannte
+Aufgaben-/Nummer wird mit Schrägstrich angehängt (z.B. "Seite 23, Aufgabe/Nummer 4" -> "S. 23/4").
 
-Beispiel: Transkript "Mathe, Seite 42 Aufgabe 3, bis morgen" -> {{"subject_guess": "Mathematik", "title": "Seite 42, Aufgabe 3", "description": null, "due_date_guess": "<morgiges Datum>"}}
+Fristangaben (z.B. "bis morgen", "bis nächste Stunde", "bis Montag") gehören AUSSCHLIESSLICH in
+die Felder "due_date_guess"/"due_next_lesson" - nimm sie NIEMALS zusätzlich in "title" oder
+"description" auf, das wäre eine doppelte Nennung.
+
+Antworte NUR mit einem JSON-Objekt, ohne weitere Erklärung, in exakt diesem Format:
+{{"subject_guess": "<im Transkript genanntes Schulfach oder null>", "title": "<kurzer, abgekürzter Titel ohne Fristangabe>", "description": "<weitere Details aus der Transkription ohne Fristangabe, oder null>", "due_date_guess": "<Datum im Format JJJJ-MM-TT falls ein konkretes Datum/Tag erkennbar ist (auch aus relativen Angaben wie \\"morgen\\" oder \\"nächsten Montag\\" ausgehend vom heutigen Datum), sonst null>", "due_next_lesson": <true, wenn die Frist "bis zur nächsten [Fach-]Stunde" ist (die genaue Zeit kommt dann aus dem Stundenplan, nicht von dir) - sonst false>}}
+
+Beispiele:
+Transkript "Mathe, Seite 42 Aufgabe 3, bis morgen" -> {{"subject_guess": "Mathematik", "title": "S. 42/3", "description": null, "due_date_guess": "<morgiges Datum>", "due_next_lesson": false}}
+Transkript "Mathe aus Aufgabe Seite 23 Nummer 4 bis nächste Stunde" -> {{"subject_guess": "Mathematik", "title": "S. 23/4", "description": null, "due_date_guess": null, "due_next_lesson": true}}
 
 Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
 """
@@ -201,16 +210,17 @@ async def extract_homework_from_voice(transcript: str, known_subjects: list[str]
         raise AgentUnavailableError(f"Ollama ({settings.ollama_base_url}) nicht erreichbar")
     match = _JSON_OBJECT.search(raw)
     if not match:
-        parsed = {"subject_guess": None, "title": transcript[:200], "description": None, "due_date_guess": None}
+        parsed = {"subject_guess": None, "title": transcript[:200], "description": None, "due_date_guess": None, "due_next_lesson": False}
     else:
         try:
             parsed = json.loads(match.group(0))
         except json.JSONDecodeError:
-            parsed = {"subject_guess": None, "title": transcript[:200], "description": None, "due_date_guess": None}
+            parsed = {"subject_guess": None, "title": transcript[:200], "description": None, "due_date_guess": None, "due_next_lesson": False}
     parsed.setdefault("title", transcript[:200] or "Hausaufgabe")
     parsed.setdefault("subject_guess", None)
     parsed.setdefault("description", None)
     parsed.setdefault("due_date_guess", None)
+    parsed["due_next_lesson"] = bool(parsed.get("due_next_lesson"))
 
     # The model invented a title/description with zero words from the actual transcript -
     # a telltale hallucination. Fall back to the transcript itself rather than keep nonsense.

@@ -20,7 +20,7 @@ export function SuggestionModal({
   const [description, setDescription] = useState(suggestion.description ?? "");
   const [subjectId, setSubjectId] = useState(suggestion.subject?.id ?? subjects[0]?.id ?? "");
   const [dueAt, setDueAt] = useState(
-    suggestion.due_date_guess ? `${suggestion.due_date_guess}T18:00` : ""
+    suggestion.due_date_guess ? `${suggestion.due_date_guess}T${suggestion.due_time_guess || "18:00"}` : ""
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

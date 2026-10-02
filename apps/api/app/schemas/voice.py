@@ -14,6 +14,7 @@ class PendingSuggestionOut(BaseModel):
     title: str
     description: str | None
     due_date_guess: str | None
+    due_time_guess: str | None
     created_at: datetime
 
     class Config:

@@ -25,6 +25,9 @@ class PendingHomeworkSuggestion(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_date_guess: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "JJJJ-MM-TT"
+    # Set only when the transcript said "bis zur nächsten Stunde" and the class's own
+    # timetable could resolve a precise lesson time - never guessed by the model itself.
+    due_time_guess: Mapped[str | None] = mapped_column(String(5), nullable=True)  # "HH:MM"
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     subject: Mapped["Subject"] = relationship()
