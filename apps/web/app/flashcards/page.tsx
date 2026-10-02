@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createDeck, DeckSummary, fetchDecks, User } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { PlusIcon } from "../../components/icons";
+import { CardsIcon, ClockIcon, PlusIcon } from "../../components/icons";
 
 export default function FlashcardsPage() {
   const router = useRouter();
@@ -75,6 +75,27 @@ export default function FlashcardsPage() {
           )}
         </button>
       </div>
+
+      {decks.length > 0 && (
+        <div className="stat-grid">
+          <div className="stat-tile">
+            <div className="stat-tile-top">
+              <span className="stat-tile-label">Decks</span>
+              <CardsIcon size={15} />
+            </div>
+            <div className="stat-tile-value">{decks.length}</div>
+          </div>
+          <div className="stat-tile">
+            <div className="stat-tile-top">
+              <span className="stat-tile-label">Karten fällig</span>
+              <ClockIcon size={15} />
+            </div>
+            <div className={`stat-tile-value ${decks.some((d) => d.due_count > 0) ? "warn" : ""}`}>
+              {decks.reduce((sum, d) => sum + d.due_count, 0)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleCreate} className="card" style={{ marginBottom: 24 }}>

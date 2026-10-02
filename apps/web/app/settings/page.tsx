@@ -24,6 +24,14 @@ import {
   setAgentTone,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
+import {
+  BookIcon,
+  CalendarIcon,
+  ShareIcon,
+  SlidersIcon,
+  TrendIcon,
+  UsersIcon,
+} from "../../components/icons";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
@@ -202,7 +210,13 @@ export default function SettingsPage() {
 
       {invite && (
         <div className="card">
-          <h3>Klasse teilen</h3>
+          <div className="card-header">
+            <span className="card-header-icon"><ShareIcon size={16} /></span>
+            <div>
+              <div className="card-header-title">Klasse teilen</div>
+              <div className="card-header-sub">Sharelink, Einladungscode &amp; Kalenderexport</div>
+            </div>
+          </div>
           <p className="muted" style={{ marginBottom: 8 }}>
             Öffentliche Ansicht ohne Login - zeigt allen mit diesem Link die offenen Hausaufgaben:
           </p>
@@ -230,7 +244,13 @@ export default function SettingsPage() {
       )}
 
       <div className="card">
-        <h3 style={{ marginBottom: 14 }}>Mitglieder der Klasse</h3>
+        <div className="card-header">
+          <span className="card-header-icon"><UsersIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">Mitglieder der Klasse</div>
+            <div className="card-header-sub">{members.length} Mitglied{members.length === 1 ? "" : "er"}</div>
+          </div>
+        </div>
         <div className="stack">
           {members.map((m) => (
             <div key={m.id} className="row" style={{ justifyContent: "space-between" }}>
@@ -251,10 +271,13 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginBottom: 4 }}>Tonfall des Agenten</h3>
-        <p className="muted" style={{ marginBottom: 14 }}>
-          Bestimmt den Stil von Zusammenfassung und Chat-Antworten.
-        </p>
+        <div className="card-header">
+          <span className="card-header-icon"><SlidersIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">Tonfall des Agenten</div>
+            <div className="card-header-sub">Bestimmt den Stil von Zusammenfassung und Chat-Antworten</div>
+          </div>
+        </div>
         <div className="toggle-group">
           <button
             type="button"
@@ -277,8 +300,42 @@ export default function SettingsPage() {
         <>
           <p className="section-title">Admin-Bereich</p>
 
+          <div className="stat-grid">
+            <div className="stat-tile">
+              <div className="stat-tile-top">
+                <span className="stat-tile-label">Mitglieder</span>
+                <UsersIcon size={15} />
+              </div>
+              <div className="stat-tile-value">{members.length}</div>
+            </div>
+            <div className="stat-tile">
+              <div className="stat-tile-top">
+                <span className="stat-tile-label">Fächer</span>
+                <BookIcon size={15} />
+              </div>
+              <div className="stat-tile-value">{subjects.length}</div>
+            </div>
+            <div className="stat-tile">
+              <div className="stat-tile-top">
+                <span className="stat-tile-label">Klassen-Quote</span>
+                <TrendIcon size={15} />
+              </div>
+              <div className="stat-tile-value accent">
+                {stats.length === 0
+                  ? "–"
+                  : `${Math.round((stats.reduce((sum, s) => sum + s.avg_completion_rate, 0) / stats.length) * 100)}%`}
+              </div>
+            </div>
+          </div>
+
           <div className="card">
-            <h3 style={{ marginBottom: 14 }}>Statistik nach Fach</h3>
+            <div className="card-header">
+              <span className="card-header-icon"><TrendIcon size={16} /></span>
+              <div>
+                <div className="card-header-title">Statistik nach Fach</div>
+                <div className="card-header-sub">Erledigungsquote über die ganze Klasse</div>
+              </div>
+            </div>
             {stats.length === 0 && <p className="muted">Noch keine Hausaufgaben erfasst.</p>}
             <div className="stack">
               {stats.map((s) => (
@@ -307,7 +364,10 @@ export default function SettingsPage() {
           </div>
 
           <div className="card">
-            <h3 style={{ marginBottom: 14 }}>Fächer verwalten</h3>
+            <div className="card-header">
+              <span className="card-header-icon"><BookIcon size={16} /></span>
+              <div className="card-header-title">Fächer verwalten</div>
+            </div>
             <form onSubmit={handleAddSubject} className="row" style={{ marginBottom: 16 }}>
               <input placeholder="Neues Fach" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} style={{ marginBottom: 0 }} />
               <input
@@ -332,7 +392,10 @@ export default function SettingsPage() {
           </div>
 
           <div className="card">
-            <h3 style={{ marginBottom: 4 }}>Stundenplan / Kalender</h3>
+            <div className="card-header">
+              <span className="card-header-icon"><CalendarIcon size={16} /></span>
+              <div className="card-header-title">Stundenplan / Kalender</div>
+            </div>
             <p className="muted" style={{ marginBottom: 16 }}>
               Da die WebUntis-API der Schule gesperrt ist, pflegst du den Stundenplan hier manuell.
             </p>

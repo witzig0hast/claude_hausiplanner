@@ -13,7 +13,7 @@ import {
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
-import { PlusIcon } from "../../components/icons";
+import { ClockIcon, ListIcon, PlusIcon, TrendIcon } from "../../components/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -129,6 +129,11 @@ function DashboardInner() {
   if (!user) return null;
 
   const openCount = items.filter((i) => !i.completed_by_me).length;
+  const { today: dueTodayAll } = groupByDue(items.filter((i) => !i.completed_by_me));
+  const dueTodayCount = dueTodayAll.length;
+  const completedCount = items.length - openCount;
+  const completionRate = items.length > 0 ? Math.round((completedCount / items.length) * 100) : null;
+
   const filtered = items
     .filter((hw) => !filterSubject || hw.subject.id === filterSubject)
     .filter(
@@ -187,6 +192,38 @@ function DashboardInner() {
             <PlusIcon size={15} /> Hausaufgabe
           </span>
         </button>
+      </div>
+
+      <div className="stat-grid">
+        <div className="stat-tile">
+          <div className="stat-tile-top">
+            <span className="stat-tile-label">Offen</span>
+            <ListIcon size={15} />
+          </div>
+          <div className="stat-tile-value">{openCount}</div>
+          <div className="stat-tile-sub">Aufgabe{openCount === 1 ? "" : "n"} insgesamt</div>
+        </div>
+        <div className="stat-tile">
+          <div className="stat-tile-top">
+            <span className="stat-tile-label">Heute fällig</span>
+            <ClockIcon size={15} />
+          </div>
+          <div className={`stat-tile-value ${dueTodayCount > 0 ? "warn" : ""}`}>{dueTodayCount}</div>
+          <div className="stat-tile-sub">in den nächsten 24h</div>
+        </div>
+        <div className="stat-tile">
+          <div className="stat-tile-top">
+            <span className="stat-tile-label">Erledigungsquote</span>
+            <TrendIcon size={15} />
+          </div>
+          <div className="stat-tile-value accent">{completionRate === null ? "–" : `${completionRate}%`}</div>
+          <div className="progress-track" style={{ marginTop: 8 }}>
+            <div
+              className="progress-fill"
+              style={{ width: `${completionRate ?? 0}%`, background: "var(--accent)" }}
+            />
+          </div>
+        </div>
       </div>
 
       {token && <AgentPanel token={token} />}
