@@ -87,15 +87,26 @@ def _format_events(events: list[CalendarEvent]) -> str:
     return "\n".join(lines)
 
 
-async def _call_text_model(prompt: str) -> str | None:
+async def _call_text_model(
+    prompt: str,
+    model: str | None = None,
+    json_mode: bool = False,
+    num_predict: int | None = None,
+) -> str | None:
     """Returns None (instead of raising) when Ollama is unreachable, so every
-    caller can fall back to something useful instead of a 500."""
+    caller can fall back to something useful instead of a 500.
+
+    json_mode constrains Ollama to emit only JSON (no chatty filler before/after),
+    and num_predict caps how many tokens it's allowed to generate - both cut
+    response time for short, structured answers like the voice/flashcards extraction."""
+    payload: dict = {"model": model or settings.ollama_model, "prompt": prompt, "stream": False}
+    if json_mode:
+        payload["format"] = "json"
+    if num_predict is not None:
+        payload["options"] = {"num_predict": num_predict}
     async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=60.0) as client:
         try:
-            response = await client.post(
-                "/api/generate",
-                json={"model": settings.ollama_model, "prompt": prompt, "stream": False},
-            )
+            response = await client.post("/api/generate", json=payload)
             response.raise_for_status()
             return response.json().get("response", "").strip()
         except httpx.HTTPError:
@@ -180,7 +191,12 @@ async def extract_homework_from_voice(transcript: str, known_subjects: list[str]
         weekday=WEEKDAYS_DE[today.weekday()],
         subjects=", ".join(known_subjects) or "keine hinterlegt",
     )
-    raw = await _call_text_model(prompt)
+    raw = await _call_text_model(
+        prompt,
+        model=settings.ollama_voice_model,
+        json_mode=True,
+        num_predict=250,
+    )
     if raw is None:
         raise AgentUnavailableError(f"Ollama ({settings.ollama_base_url}) nicht erreichbar")
     match = _JSON_OBJECT.search(raw)

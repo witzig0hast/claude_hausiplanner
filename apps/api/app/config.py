@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
     ollama_vision_model: str = "llava"
+    # Structuring a voice transcript into a homework suggestion is a small, fast task -
+    # defaults to ollama_model, but a smaller/quicker model can be set here instead.
+    ollama_voice_model: str | None = None
     whisper_host: str = "localhost"
     whisper_port: int = 10300
     expo_access_token: str | None = None

@@ -174,8 +174,18 @@ Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadlin
 - **Setup:** `HOMEWORK_WHISPER_HOST`/`HOMEWORK_WHISPER_PORT` auf deinen Wyoming-ASR-Dienst
   zeigen lassen (im Docker-Setup per `.env`: `WHISPER_PORT=10300` falls abweichend vom
   Standard). `HOMEWORK_OLLAMA_MODEL` kannst du auf ein Modell setzen, das du bereits lokal
-  laufen hast (z.B. `hermes3:8b`) - es wird für Zusammenfassung, Chat und diese Strukturierung
-  gleichermaßen verwendet.
+  laufen hast (z.B. `hermes3:8b`) - es wird für Zusammenfassung und Chat verwendet.
+- **Geschwindigkeit:** Die Strukturierung des Transkripts (Fach/Titel/Deadline erkennen) ist
+  eine kleine, einfache Aufgabe - dafür muss es nicht dasselbe große Modell wie für Chat/
+  Zusammenfassung sein. Per `.env`: `VOICE_MODEL=llama3.2:1b` (Docker-Setup) bzw.
+  `HOMEWORK_OLLAMA_VOICE_MODEL=llama3.2:1b` (lokal) ein kleineres, schnelleres Modell
+  speziell dafür setzen - vorher einmal mit `ollama pull llama3.2:1b` (oder z.B.
+  `qwen2.5:1.5b`) ziehen. Ohne diese Variable läuft weiterhin `HOMEWORK_OLLAMA_MODEL`.
+  Die Anfrage selbst ist zusätzlich auf JSON-Antwort und max. 250 Tokens begrenzt, damit das
+  Modell nicht unnötig weiterredet. Für spürbar schnellere Transkription selbst (statt nur
+  der Strukturierung danach) hilft zusätzlich ein kleineres Whisper-Modell in deinem
+  `wyoming-whisper`-Dienst (z.B. `tiny`/`base` statt `medium`/`large`) - das stellst du direkt
+  in dessen eigener Konfiguration um, nicht hier.
 - **Account-bezogen, nicht Tab-bezogen:** Der Vorschlag wird serverseitig pro Nutzer
   zwischengespeichert (`pending_homework_suggestions`), nicht nur im Browser. Schließt du die
   Seite direkt nach dem Einsprechen und öffnest sie Stunden später auf einem anderen Gerät,
