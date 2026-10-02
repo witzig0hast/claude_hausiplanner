@@ -6,6 +6,7 @@ that the app then shows the user to confirm or edit before saving.
 
 import base64
 import json
+import re
 
 import httpx
 
@@ -116,6 +117,23 @@ def _extract_json(text: str) -> dict:
     return result
 
 
+_FLAT_ENTRY_OBJECT = re.compile(r"\{[^{}]*\}")
+
+
+def _extract_partial_entries(text: str) -> list[dict]:
+    """Best-effort recovery for a timetable response that got cut off mid-array (e.g. the
+    model's context window was too small to finish) - pull out every complete, flat
+    {...} entry object instead of discarding the whole response over one dangling,
+    incomplete object at the end."""
+    entries = []
+    for match in _FLAT_ENTRY_OBJECT.finditer(text):
+        try:
+            entries.append(json.loads(match.group(0)))
+        except json.JSONDecodeError:
+            continue
+    return entries
+
+
 class VisionUnavailableError(Exception):
     """Ollama (or the configured vision model) could not be reached."""
 
@@ -133,9 +151,12 @@ async def _call_vision_model(image_bytes: bytes, prompt: str) -> str:
                     "stream": False,
                     # Forces valid JSON (no markdown fences/explanations) and gives the
                     # model enough output budget for a full week of entries - a timetable
-                    # with ~30+ lessons was otherwise getting cut off mid-array.
+                    # with ~30+ lessons was otherwise getting cut off mid-array. num_ctx also
+                    # has to grow: the image itself consumes a large share of a small default
+                    # context window, leaving too little room for a long JSON response even
+                    # with num_predict raised, which cut answers off mid-object.
                     "format": "json",
-                    "options": {"temperature": 0, "num_predict": 4096},
+                    "options": {"temperature": 0, "num_predict": 4096, "num_ctx": 8192},
                 },
             )
             response.raise_for_status()
@@ -165,9 +186,12 @@ async def extract_timetable_from_image(image_bytes: bytes, known_subjects: list[
         parsed = _extract_json(raw)
         parsed.setdefault("entries", [])
     except (ValueError, json.JSONDecodeError):
-        parsed = {"entries": []}
+        # The response likely got cut off mid-array (e.g. context window too small for a
+        # full week) - salvage whatever complete entries we can instead of showing nothing.
+        parsed = {"entries": _extract_partial_entries(raw)}
 
-    entries = parsed.get("entries") or []
+    required_keys = {"subject_guess", "weekday_guess", "starts_at_guess", "ends_at_guess"}
+    entries = [e for e in (parsed.get("entries") or []) if required_keys.issubset(e) and all(e[k] for k in required_keys)]
     # Drop entries whose "subject" is actually a leaked instruction word - a known failure
     # mode of small vision models that lets them echo the prompt instead of reading the image.
     cleaned = [
