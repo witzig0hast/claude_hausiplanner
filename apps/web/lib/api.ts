@@ -182,6 +182,7 @@ export async function deleteCalendarEvent(token: string, eventId: string) {
 
 export type TimetableEntrySuggestion = {
   subject_guess: string;
+  subject_raw: string | null;
   weekday_guess: string;
   starts_at_guess: string;
   ends_at_guess: string;

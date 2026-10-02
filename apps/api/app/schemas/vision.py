@@ -10,7 +10,8 @@ class HomeworkSuggestion(BaseModel):
 
 
 class TimetableEntrySuggestion(BaseModel):
-    subject_guess: str
+    subject_guess: str  # resolved full subject name, e.g. "Englisch" - the suggestion to show
+    subject_raw: str | None = None  # the un-resolved OCR text, e.g. "E" - shown for transparency
     weekday_guess: str  # e.g. "Montag" - the client maps this to an actual date
     starts_at_guess: str  # "HH:MM"
     ends_at_guess: str  # "HH:MM"

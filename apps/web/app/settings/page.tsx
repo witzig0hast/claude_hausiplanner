@@ -68,10 +68,19 @@ export default function SettingsPage() {
   const [eventStart, setEventStart] = useState("08:00");
   const [eventEnd, setEventEnd] = useState("08:45");
 
-  type DraftLesson = { included: boolean; subjectName: string; weekday: number; start: string; end: string };
+  type DraftLesson = {
+    included: boolean;
+    subjectName: string;
+    subjectRaw?: string;
+    weekday: number;
+    start: string;
+    end: string;
+    customTime?: boolean;
+  };
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [timetablePreview, setTimetablePreview] = useState<DraftLesson[] | null>(null);
+  const [detectedSlots, setDetectedSlots] = useState<{ start: string; end: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -219,12 +228,25 @@ export default function SettingsPage() {
         return {
           included: true,
           subjectName: entry.subject_guess || "",
+          subjectRaw: entry.subject_raw || undefined,
           weekday: weekdayIndex >= 0 ? weekdayIndex : 0,
           start: /^\d{2}:\d{2}$/.test(entry.starts_at_guess) ? entry.starts_at_guess : "08:00",
           end: /^\d{2}:\d{2}$/.test(entry.ends_at_guess) ? entry.ends_at_guess : "08:45",
         };
       });
       setTimetablePreview(drafts);
+
+      const seenSlots = new Set<string>();
+      const slots: { start: string; end: string }[] = [];
+      for (const d of drafts) {
+        const key = `${d.start}|${d.end}`;
+        if (!seenSlots.has(key)) {
+          seenSlots.add(key);
+          slots.push({ start: d.start, end: d.end });
+        }
+      }
+      slots.sort((a, b) => a.start.localeCompare(b.start));
+      setDetectedSlots(slots);
       if (drafts.length === 0) {
         setScanError("Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen.");
       } else if (result.low_confidence) {
@@ -505,6 +527,11 @@ export default function SettingsPage() {
                         onChange={(e) => updateDraft(i, { subjectName: e.target.value })}
                         style={{ marginBottom: 0, flex: 1, minWidth: 100 }}
                         list="known-subjects"
+                        title={
+                          draft.subjectRaw && draft.subjectRaw.trim().toLowerCase() !== draft.subjectName.trim().toLowerCase()
+                            ? `KI hat im Bild "${draft.subjectRaw}" erkannt und "${draft.subjectName}" vorgeschlagen`
+                            : undefined
+                        }
                       />
                       <select
                         value={draft.weekday}
@@ -515,18 +542,41 @@ export default function SettingsPage() {
                           <option key={w} value={wi}>{w}</option>
                         ))}
                       </select>
-                      <input
-                        type="time"
-                        value={draft.start}
-                        onChange={(e) => updateDraft(i, { start: e.target.value })}
-                        style={{ marginBottom: 0, width: 100 }}
-                      />
-                      <input
-                        type="time"
-                        value={draft.end}
-                        onChange={(e) => updateDraft(i, { end: e.target.value })}
-                        style={{ marginBottom: 0, width: 100 }}
-                      />
+                      <select
+                        value={draft.customTime ? "custom" : `${draft.start}|${draft.end}`}
+                        onChange={(e) => {
+                          if (e.target.value === "custom") {
+                            updateDraft(i, { customTime: true });
+                          } else {
+                            const [start, end] = e.target.value.split("|");
+                            updateDraft(i, { start, end, customTime: false });
+                          }
+                        }}
+                        style={{ marginBottom: 0, minWidth: 170 }}
+                      >
+                        {detectedSlots.map((slot, si) => (
+                          <option key={si} value={`${slot.start}|${slot.end}`}>
+                            {si + 1}. Stunde ({slot.start}–{slot.end})
+                          </option>
+                        ))}
+                        <option value="custom">Eigene Zeit…</option>
+                      </select>
+                      {draft.customTime && (
+                        <>
+                          <input
+                            type="time"
+                            value={draft.start}
+                            onChange={(e) => updateDraft(i, { start: e.target.value })}
+                            style={{ marginBottom: 0, width: 100 }}
+                          />
+                          <input
+                            type="time"
+                            value={draft.end}
+                            onChange={(e) => updateDraft(i, { end: e.target.value })}
+                            style={{ marginBottom: 0, width: 100 }}
+                          />
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -534,7 +584,16 @@ export default function SettingsPage() {
                   {subjects.map((s) => <option key={s.id} value={s.name} />)}
                 </datalist>
                 <div className="row" style={{ marginTop: 14 }}>
-                  <button type="button" className="ghost" onClick={() => setTimetablePreview(null)}>Verwerfen</button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setTimetablePreview(null);
+                      setDetectedSlots([]);
+                    }}
+                  >
+                    Verwerfen
+                  </button>
                   <button type="button" onClick={handleApplyTimetable}>Übernehmen</button>
                 </div>
               </div>

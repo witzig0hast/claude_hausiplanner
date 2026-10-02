@@ -27,8 +27,11 @@ Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
 """
 
 TIMETABLE_PROMPT = """Du bist ein OCR-Assistent. Du siehst ein Foto eines Wochen-Stundenplans
-(eine Tabelle mit Wochentagen als Spalten oder Zeilen und Uhrzeiten). Lies jede Zelle einzeln
-und sorgfältig. Lässt sich eine Zelle nicht lesen, lasse sie weg statt zu raten.
+(eine Tabelle mit Wochentagen als Spalten oder Zeilen und Uhrzeiten). Gehe systematisch
+Spalte für Spalte (Wochentag für Wochentag) von oben nach unten durch und erfasse JEDE
+belegte Unterrichtsstunde, die du siehst - überspringe keine Stunde und höre nicht vorzeitig
+auf, auch wenn es viele sind. Lässt sich eine einzelne Zelle nicht lesen, lasse nur diese eine
+Zelle weg statt zu raten, aber brich die Erfassung dadurch nicht ab.
 
 WICHTIG: In Stundenplänen wie WebUntis stehen in jeder Zelle mehrere Zeilen übereinander,
 typischerweise in dieser Reihenfolge:
@@ -50,6 +53,48 @@ Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevo
 # Words the vision model sometimes echoes from the instructions themselves (a known llava
 # failure mode) instead of actually reading the image - never plausible subject names.
 _HALLUCINATION_MARKERS = {"nur", "ja", "nein", "kein", "keine", "unbekannt", "fach", "leer"}
+
+# Common German school subject abbreviations, used only as a fallback when the abbreviation
+# doesn't match one of the class's own subjects - so "E" becomes a suggestion ("Englisch")
+# the admin can still overrule, never a silent guess the admin can't see was made.
+_SUBJECT_ABBREVIATIONS = {
+    "d": "Deutsch", "e": "Englisch", "m": "Mathematik", "ma": "Mathematik", "mat": "Mathematik",
+    "ph": "Physik", "phu": "Physik", "c": "Chemie", "ch": "Chemie", "cu": "Chemie",
+    "bio": "Biologie", "b": "Biologie", "g": "Geschichte", "ges": "Geschichte",
+    "geo": "Erdkunde", "ek": "Erdkunde", "ku": "Kunst", "mu": "Musik",
+    "sp": "Sport", "sm": "Sport", "sw": "Sport", "inf": "Informatik",
+    "reli": "Religion", "re": "Religion", "eth": "Ethik", "f": "Französisch",
+    "fr": "Französisch", "la": "Latein", "sowi": "Politik", "pug": "Politik",
+    "wr": "Wirtschaft/Recht", "span": "Spanisch", "spa": "Spanisch",
+}
+
+
+def _resolve_subject(raw: str, known_subjects: list[str]) -> str:
+    """Turn a (possibly abbreviated) OCR'd subject into a suggested full name - preferring
+    the class's own subjects over a generic abbreviation table, so e.g. "E" becomes
+    "Englisch" if that's already one of the class's subjects, before falling back to the
+    generic table. Never invents a subject the admin can't trace back to the raw OCR text."""
+    text = raw.strip()
+    if not text:
+        return text
+    lowered = text.lower()
+
+    for name in known_subjects:
+        if name.lower() == lowered:
+            return name
+
+    prefix_matches = [name for name in known_subjects if name.lower().startswith(lowered)]
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
+
+    mapped = _SUBJECT_ABBREVIATIONS.get(lowered)
+    if mapped:
+        for name in known_subjects:
+            if name.lower() == mapped.lower():
+                return name
+        return mapped
+
+    return text
 
 
 def _extract_json(text: str) -> dict:
@@ -115,11 +160,14 @@ async def extract_timetable_from_image(image_bytes: bytes, known_subjects: list[
         if (entry.get("subject_guess") or "").strip().lower() not in _HALLUCINATION_MARKERS
     ]
     all_same_subject = len({(e.get("subject_guess") or "").strip().lower() for e in entries}) == 1
-    if cleaned != entries or (len(entries) > 1 and all_same_subject):
-        parsed["entries"] = cleaned
-        parsed["low_confidence"] = True
-    else:
-        parsed["entries"] = cleaned
+    low_confidence = cleaned != entries or (len(entries) > 1 and all_same_subject)
 
+    for entry in cleaned:
+        raw_subject = (entry.get("subject_guess") or "").strip()
+        entry["subject_raw"] = raw_subject
+        entry["subject_guess"] = _resolve_subject(raw_subject, known_subjects or [])
+
+    parsed["entries"] = cleaned
+    parsed["low_confidence"] = low_confidence
     parsed["raw_model_output"] = raw
     return parsed
