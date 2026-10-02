@@ -11,6 +11,7 @@ from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
     SetAgentToneRequest,
+    SetEmailRemindersRequest,
     TokenResponse,
     UserOut,
 )
@@ -95,6 +96,18 @@ def set_agent_tone(
     if payload.tone not in ("locker", "streng"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "tone must be 'locker' or 'streng'")
     user.agent_tone = payload.tone
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/me/email-reminders", response_model=UserOut)
+def set_email_reminders(
+    payload: SetEmailRemindersRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    user.email_reminders_enabled = payload.enabled
     db.commit()
     db.refresh(user)
     return user

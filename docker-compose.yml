@@ -24,6 +24,12 @@ services:
       HOMEWORK_WEB_BASE_URL: ${PUBLIC_WEB_URL:-https://homework.example-domain.de}
       HOMEWORK_WHISPER_HOST: host.docker.internal
       HOMEWORK_WHISPER_PORT: ${WHISPER_PORT:-10300}
+      HOMEWORK_SMTP_HOST: ${SMTP_HOST:-}
+      HOMEWORK_SMTP_PORT: ${SMTP_PORT:-587}
+      HOMEWORK_SMTP_USERNAME: ${SMTP_USERNAME:-}
+      HOMEWORK_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      HOMEWORK_SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      HOMEWORK_SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     ports:
       - "8000:8000"
     extra_hosts:

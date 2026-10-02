@@ -27,6 +27,7 @@ import {
   fetchInvite,
   fetchMySubjects,
   setAgentTone,
+  setEmailReminders,
   updateCalendarEvent,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
@@ -34,6 +35,7 @@ import {
   BookIcon,
   CalendarIcon,
   ClockIcon,
+  MailIcon,
   ShareIcon,
   SlidersIcon,
   TrendIcon,
@@ -202,6 +204,13 @@ export default function SettingsPage() {
   async function handleSetTone(tone: "locker" | "streng") {
     if (!token) return;
     const updated = await setAgentTone(token, tone);
+    setUser(updated);
+    localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+  }
+
+  async function handleToggleEmailReminders(enabled: boolean) {
+    if (!token) return;
+    const updated = await setEmailReminders(token, enabled);
     setUser(updated);
     localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
   }
@@ -468,6 +477,35 @@ export default function SettingsPage() {
             onClick={() => handleSetTone("streng")}
           >
             Sachlich
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-header-icon"><MailIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">E-Mail-Erinnerungen</div>
+            <div className="card-header-sub">
+              Zusätzlich zur Push-Nachricht per E-Mail erinnern, wenn eine Hausaufgabe bald
+              fällig und noch nicht erledigt ist
+            </div>
+          </div>
+        </div>
+        <div className="toggle-group">
+          <button
+            type="button"
+            className={user.email_reminders_enabled ? "active" : ""}
+            onClick={() => handleToggleEmailReminders(true)}
+          >
+            An
+          </button>
+          <button
+            type="button"
+            className={!user.email_reminders_enabled ? "active" : ""}
+            onClick={() => handleToggleEmailReminders(false)}
+          >
+            Aus
           </button>
         </div>
       </div>

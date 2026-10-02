@@ -196,6 +196,29 @@ Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadlin
 - Ohne erreichbaren Whisper- oder Ollama-Dienst liefert `/voice/capture` einen sauberen `503`
   statt eines Absturzes.
 
+## E-Mail-Erinnerungen
+
+Zusätzlich zu den Push-Benachrichtigungen kann der Server bei bald fälligen, noch nicht
+erledigten Hausaufgaben eine KI-personalisierte Erinnerungs-E-Mail verschicken (vom selben
+Scheduler-Job, der auch die Push-Erinnerung auslöst).
+
+- **Setup:** Ein globaler SMTP-Server wird einmalig in der `.env` hinterlegt (im Docker-Setup):
+  `SMTP_HOST`, `SMTP_PORT` (Standard 587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`,
+  `SMTP_USE_TLS` (Standard `true`). Lokal ohne Docker die entsprechenden
+  `HOMEWORK_SMTP_*`-Variablen setzen. Ohne `SMTP_HOST`+`SMTP_FROM_EMAIL` bleibt der Versand
+  komplett deaktiviert (kein Fehler, einfach keine Mails).
+- **Pro Nutzer ein-/ausschaltbar:** Jeder Nutzer kann E-Mail-Erinnerungen unter
+  Einstellungen → Tonfall-Bereich separat aktivieren/deaktivieren (`PUT /auth/me/email-reminders`,
+  Standard: an). Die globale SMTP-Konfiguration betrifft also nur, *ob überhaupt* Mails
+  verschickt werden können - die Checkbox entscheidet, *wer* sie bekommt.
+- Der Mailtext wird vom selben Ollama-Modell wie Zusammenfassung/Chat erzeugt, im Tonfall
+  (`locker`/`streng`) des jeweiligen Nutzers, und bezieht sich ausschließlich auf die konkrete
+  fällige Aufgabe. Ist Ollama nicht erreichbar, wird ein einfacher Standardtext verschickt statt
+  die Mail ausfallen zu lassen.
+- Ein SMTP-Fehler (falsche Zugangsdaten, Server nicht erreichbar) bricht nur den Mailversand für
+  diesen einen Nutzer ab - die Push-Erinnerung und das Tracking ("schon erinnert") laufen normal
+  weiter.
+
 ## Weitere Endpoints
 
 - `GET /classes/me/invite` - Sharelink + Invite-Code für Mitschüler

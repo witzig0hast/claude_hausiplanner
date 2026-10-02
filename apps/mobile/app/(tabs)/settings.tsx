@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { setAgentTone } from "../../lib/api";
+import { setAgentTone, setEmailReminders } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 export default function SettingsScreen() {
@@ -15,6 +15,12 @@ export default function SettingsScreen() {
   async function handleSetTone(tone: "locker" | "streng") {
     if (!token) return;
     const updated = await setAgentTone(token, tone);
+    await setSession(token, updated);
+  }
+
+  async function handleToggleEmailReminders(enabled: boolean) {
+    if (!token) return;
+    const updated = await setEmailReminders(token, enabled);
     await setSession(token, updated);
   }
 
@@ -37,6 +43,22 @@ export default function SettingsScreen() {
           onPress={() => handleSetTone("streng")}
         >
           <Text style={styles.toneButtonText}>Streng</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.sectionTitle}>E-Mail-Erinnerungen</Text>
+      <View style={styles.toneRow}>
+        <Pressable
+          style={[styles.toneButton, user?.email_reminders_enabled && styles.toneButtonActive]}
+          onPress={() => handleToggleEmailReminders(true)}
+        >
+          <Text style={styles.toneButtonText}>An</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.toneButton, !user?.email_reminders_enabled && styles.toneButtonActive]}
+          onPress={() => handleToggleEmailReminders(false)}
+        >
+          <Text style={styles.toneButtonText}>Aus</Text>
         </Pressable>
       </View>
 

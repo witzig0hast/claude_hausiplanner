@@ -27,6 +27,7 @@ class UserOut(BaseModel):
     is_class_admin: bool
     school_class_id: uuid.UUID | None
     agent_tone: str
+    email_reminders_enabled: bool
 
     class Config:
         from_attributes = True
@@ -34,6 +35,10 @@ class UserOut(BaseModel):
 
 class SetAgentToneRequest(BaseModel):
     tone: str  # "locker" | "streng"
+
+
+class SetEmailRemindersRequest(BaseModel):
+    enabled: bool
 
 
 class TokenResponse(BaseModel):

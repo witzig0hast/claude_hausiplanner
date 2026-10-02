@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     digest_hour_local: int = 19  # daily digest push, 24h local time
     web_base_url: str = "http://localhost:3000"
 
+    # Global SMTP config for deadline-reminder emails - set once in .env, no per-class setup.
+    # Sending stays off entirely unless smtp_host AND smtp_from_email are both set; the
+    # per-user "email_reminders_enabled" flag only matters once SMTP itself is configured.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+
     class Config:
         env_prefix = "HOMEWORK_"
         env_file = ".env"

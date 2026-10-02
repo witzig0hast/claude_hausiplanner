@@ -56,6 +56,20 @@ Offene Hausaufgaben von {name}:
 {items}
 """
 
+EMAIL_REMINDER_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {tone}
+Schreibe eine kurze, freundliche E-Mail (max. 80 Wörter) an {name}. Erinnere unaufdringlich
+daran, dass die folgende Hausaufgabe noch nicht als erledigt markiert ist und bald fällig ist.
+Nutze AUSSCHLIESSLICH die folgenden Fakten - erfinde keine zusätzlichen Details, Fristen oder
+Aufgaben, die dort nicht stehen.
+
+Fach: {subject}
+Aufgabe: {title}
+Fällig: {due}
+
+Schreibe NUR den E-Mail-Text selbst (keine Betreffzeile, keine Floskel wie "Sehr geehrte/r"),
+mit natürlicher Anrede beim Vornamen, auf Deutsch.
+"""
+
 CHAT_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {tone}
 Antworte kurz und konkret auf Deutsch (max. 100 Wörter), basierend NUR auf dem Kontext unten -
 erfinde keine Hausaufgaben, Fächer oder Termine, die dort nicht auftauchen.
@@ -130,6 +144,28 @@ def _open_homework_query(db: Session, user: User):
         )
         .order_by(Homework.due_at.asc())
         .all()
+    )
+
+
+async def generate_email_reminder(user: User, hw: Homework) -> str:
+    """AI-personalized reminder email body for one not-yet-completed homework item.
+    Falls back to a plain deterministic text if Ollama is unreachable - the email still
+    gets sent, just without the personalized phrasing."""
+    prompt = EMAIL_REMINDER_PROMPT_TEMPLATE.format(
+        tone=TONE_INSTRUCTIONS.get(user.agent_tone, TONE_INSTRUCTIONS["locker"]),
+        name=user.display_name,
+        subject=hw.subject.name,
+        title=hw.title,
+        due=hw.due_at.strftime("%d.%m.%Y %H:%M"),
+    )
+    result = await _call_text_model(prompt)
+    if result:
+        return result
+    return (
+        f"Hallo {user.display_name},\n\n"
+        f"kleine Erinnerung: \"{hw.title}\" im Fach {hw.subject.name} ist am "
+        f"{hw.due_at.strftime('%d.%m.%Y um %H:%M')} fällig und du hast sie noch nicht als "
+        "erledigt markiert.\n\nKein Stress, nur ein Hinweis!"
     )
 
 

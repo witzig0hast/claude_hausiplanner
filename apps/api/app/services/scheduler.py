@@ -11,7 +11,8 @@ from app.database import SessionLocal
 from app.models.homework import Homework
 from app.models.push_token import SentReminder
 from app.models.user import User
-from app.services.ollama_agent import generate_summary_for_user
+from app.services.email import EmailUnavailableError, is_configured as email_is_configured, send_email
+from app.services.ollama_agent import generate_email_reminder, generate_summary_for_user
 from app.services.push import send_gentle_reminder
 
 # How long before a deadline we send one calm heads-up (no repeated nagging, no alarm).
@@ -31,8 +32,9 @@ async def run_daily_digest() -> None:
         db.close()
 
 
-def run_deadline_reminders() -> None:
-    """Gentle single reminder for homework due soon that a user hasn't marked done yet."""
+async def run_deadline_reminders() -> None:
+    """Gentle single reminder (push + optional AI-personalized email) for homework due soon
+    that a user hasn't marked done yet."""
     db = SessionLocal()
     try:
         now = datetime.utcnow()
@@ -60,6 +62,12 @@ def run_deadline_reminders() -> None:
                     f"Erinnerung: {hw.subject.name}",
                     f"\"{hw.title}\" ist bald fällig - kein Stress, nur ein kleiner Hinweis.",
                 )
+                if user.email_reminders_enabled and email_is_configured():
+                    body = await generate_email_reminder(user, hw)
+                    try:
+                        send_email(user.email, f"Erinnerung: {hw.subject.name}", body)
+                    except EmailUnavailableError:
+                        pass  # never let a broken SMTP server block the push reminder/tracking
                 db.add(SentReminder(homework_id=hw.id, user_id=user.id))
                 db.commit()
     finally:
@@ -75,7 +83,7 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     scheduler.add_job(
-        run_deadline_reminders,
+        lambda: asyncio.create_task(run_deadline_reminders()),
         IntervalTrigger(hours=1),
         id="deadline_reminders",
         replace_existing=True,

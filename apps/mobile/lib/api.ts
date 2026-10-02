@@ -22,6 +22,7 @@ export type User = {
   is_class_admin: boolean;
   school_class_id: string | null;
   agent_tone: "locker" | "streng";
+  email_reminders_enabled: boolean;
 };
 
 function authHeaders(token: string): HeadersInit {
@@ -195,6 +196,15 @@ export async function setAgentTone(token: string, tone: "locker" | "streng"): Pr
     method: "PUT",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify({ tone }),
+  });
+  return handle<User>(res);
+}
+
+export async function setEmailReminders(token: string, enabled: boolean): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/email-reminders`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ enabled }),
   });
   return handle<User>(res);
 }

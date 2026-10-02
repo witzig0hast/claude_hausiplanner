@@ -20,6 +20,7 @@ export type User = {
   is_class_admin: boolean;
   school_class_id: string | null;
   agent_tone: "locker" | "streng";
+  email_reminders_enabled: boolean;
 };
 
 function authHeaders(token: string | null): HeadersInit {
@@ -312,6 +313,16 @@ export async function setAgentTone(token: string, tone: "locker" | "streng"): Pr
     body: JSON.stringify({ tone }),
   });
   if (!res.ok) throw new Error("Konnte Tonfall nicht ändern");
+  return res.json();
+}
+
+export async function setEmailReminders(token: string, enabled: boolean): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/email-reminders`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error("Konnte E-Mail-Erinnerungen nicht ändern");
   return res.json();
 }
 
