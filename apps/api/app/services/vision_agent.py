@@ -123,7 +123,7 @@ class VisionUnavailableError(Exception):
 async def _call_vision_model(image_bytes: bytes, prompt: str) -> str:
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     try:
-        async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=120.0) as client:
+        async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=240.0) as client:
             response = await client.post(
                 "/api/generate",
                 json={
@@ -131,7 +131,11 @@ async def _call_vision_model(image_bytes: bytes, prompt: str) -> str:
                     "prompt": prompt,
                     "images": [image_b64],
                     "stream": False,
-                    "options": {"temperature": 0},
+                    # Forces valid JSON (no markdown fences/explanations) and gives the
+                    # model enough output budget for a full week of entries - a timetable
+                    # with ~30+ lessons was otherwise getting cut off mid-array.
+                    "format": "json",
+                    "options": {"temperature": 0, "num_predict": 4096},
                 },
             )
             response.raise_for_status()
