@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
 from app.models.calendar_event import CalendarEvent
+from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.calendar_event import CalendarEventCreate, CalendarEventOut
 from app.schemas.vision import TimetableSuggestion
@@ -30,6 +31,7 @@ def list_events(user: User = Depends(require_class_member), db: Session = Depend
 async def extract_timetable(
     file: UploadFile = File(...),
     user: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
 ):
     """Einmaliges Einscannen des Stundenplans -> Vorschläge, die der Admin vor dem
     Speichern noch prüft/korrigiert (kein automatischer WebUntis-Sync möglich)."""
@@ -40,8 +42,11 @@ async def extract_timetable(
     if len(image_bytes) > MAX_IMAGE_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Bild zu groß (max. 8MB)")
 
+    subject_names = [
+        s.name for s in db.query(Subject).filter(Subject.school_class_id == user.school_class_id).all()
+    ]
     try:
-        suggestion = await extract_timetable_from_image(image_bytes)
+        suggestion = await extract_timetable_from_image(image_bytes, subject_names)
     except VisionUnavailableError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
     return TimetableSuggestion(**suggestion)

@@ -28,14 +28,23 @@ Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
 
 TIMETABLE_PROMPT = """Du bist ein OCR-Assistent. Du siehst ein Foto eines Wochen-Stundenplans
 (eine Tabelle mit Wochentagen als Spalten oder Zeilen und Uhrzeiten). Lies jede Zelle einzeln
-und sorgfältig. Übernimm für jedes Fach genau den Text, der in der jeweiligen Zelle steht -
-erfinde oder wiederhole niemals ein Wort, das du nicht in dieser Zelle siehst. Lässt sich eine
-Zelle nicht lesen, lasse sie weg statt zu raten.
+und sorgfältig. Lässt sich eine Zelle nicht lesen, lasse sie weg statt zu raten.
+
+WICHTIG: In Stundenplänen wie WebUntis stehen in jeder Zelle mehrere Zeilen übereinander,
+typischerweise in dieser Reihenfolge:
+1. Name der Lehrkraft (ein Nachname, z.B. "Binder", "Hammerl", "Fechter")
+2. Fach-Kürzel (ein kurzes Kürzel, z.B. "D", "E", "Ma", "Ph", "Geo", "Inf", "Ku", "Mu", "Sm")
+3. Raumnummer (eine Zahl oder Zahl+Buchstabe, z.B. "066", "224", "U02")
+Nimm für "subject_guess" NIEMALS den Lehrernamen (Zeile 1) oder die Raumnummer (Zeile 3) -
+sondern ausschließlich das Fach-Kürzel aus Zeile 2 dieser Zelle. Übernimm das Kürzel exakt so,
+wie es dort steht - erfinde oder wiederhole niemals ein Wort, das du nicht in dieser Zelle siehst.
 
 Gib ausschließlich das folgende JSON-Objekt zurück, ohne Fließtext davor oder danach:
-{{"entries": [{{"subject_guess": "<tatsächlich in der Zelle erkanntes Fach>", "weekday_guess": "<Montag|Dienstag|Mittwoch|Donnerstag|Freitag>", "starts_at_guess": "<HH:MM>", "ends_at_guess": "<HH:MM>"}}]}}
+{{"entries": [{{"subject_guess": "<Fach-Kürzel aus Zeile 2 der Zelle, nicht der Lehrername>", "weekday_guess": "<Montag|Dienstag|Mittwoch|Donnerstag|Freitag>", "starts_at_guess": "<HH:MM>", "ends_at_guess": "<HH:MM>"}}]}}
 
-Beispiel-Antwort: {{"entries": [{{"subject_guess": "Englisch", "weekday_guess": "Montag", "starts_at_guess": "08:00", "ends_at_guess": "08:45"}}]}}
+Beispiel-Antwort: {{"entries": [{{"subject_guess": "E", "weekday_guess": "Montag", "starts_at_guess": "08:00", "ends_at_guess": "08:45"}}]}}
+
+Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevorzuge diese bei Übereinstimmung): {subjects}
 """
 
 # Words the vision model sometimes echoes from the instructions themselves (a known llava
@@ -88,8 +97,9 @@ async def extract_homework_from_image(image_bytes: bytes, known_subjects: list[s
     return parsed
 
 
-async def extract_timetable_from_image(image_bytes: bytes) -> dict:
-    raw = await _call_vision_model(image_bytes, TIMETABLE_PROMPT)
+async def extract_timetable_from_image(image_bytes: bytes, known_subjects: list[str] | None = None) -> dict:
+    prompt = TIMETABLE_PROMPT.format(subjects=", ".join(known_subjects or []) or "keine hinterlegt")
+    raw = await _call_vision_model(image_bytes, prompt)
     try:
         parsed = _extract_json(raw)
         parsed.setdefault("entries", [])
