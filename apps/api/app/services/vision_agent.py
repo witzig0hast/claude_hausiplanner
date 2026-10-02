@@ -6,13 +6,10 @@ that the app then shows the user to confirm or edit before saving.
 
 import base64
 import json
-import re
 
 import httpx
 
 from app.config import settings
-
-_JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
 
 HOMEWORK_PROMPT = """Du bist ein OCR-Assistent. Lies zuerst jedes sichtbare Wort auf dem Foto
 (Tafel, Aufgabenblatt oder Heft) sorgfältig, bevor du antwortest. Rate nichts, das du nicht
@@ -98,10 +95,25 @@ def _resolve_subject(raw: str, known_subjects: list[str]) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    match = _JSON_BLOCK.search(text)
-    if not match:
+    """Find the JSON object in the model's response, ignoring any explanatory text or
+    markdown fences the model adds around it despite being told not to. A naive greedy
+    regex from the first "{" to the last "}" breaks as soon as such surrounding text
+    contains its own brace (e.g. a "{...}" mentioned while explaining the format), so
+    instead decode every JSON object the text contains and keep the last one - the model's
+    actual answer, since any example or aside it echoes from the prompt comes first."""
+    decoder = json.JSONDecoder()
+    result = None
+    start = text.find("{")
+    while start != -1:
+        try:
+            obj, end = decoder.raw_decode(text, start)
+            result = obj
+            start = text.find("{", max(end, start + 1))
+        except json.JSONDecodeError:
+            start = text.find("{", start + 1)
+    if result is None:
         raise ValueError("Model returned no JSON")
-    return json.loads(match.group(0))
+    return result
 
 
 class VisionUnavailableError(Exception):

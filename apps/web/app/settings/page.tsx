@@ -248,7 +248,11 @@ export default function SettingsPage() {
       slots.sort((a, b) => a.start.localeCompare(b.start));
       setDetectedSlots(slots);
       if (drafts.length === 0) {
-        setScanError("Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen.");
+        const preview = result.raw_model_output?.trim().slice(0, 300);
+        setScanError(
+          "Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen." +
+            (preview ? ` (Modell-Antwort: "${preview}${result.raw_model_output.length > 300 ? "…" : ""}")` : "")
+        );
       } else if (result.low_confidence) {
         setScanError(
           "Die Erkennung wirkt unsicher (z.B. gleiches Fach bei allen Stunden) - bitte jede Zeile vor dem Übernehmen genau prüfen."
