@@ -180,6 +180,45 @@ export async function deleteCalendarEvent(token: string, eventId: string) {
   if (!res.ok) throw new Error("Konnte Termin nicht löschen");
 }
 
+export type TimetableEntrySuggestion = {
+  subject_guess: string;
+  weekday_guess: string;
+  starts_at_guess: string;
+  ends_at_guess: string;
+};
+
+export type TimetableSuggestion = {
+  entries: TimetableEntrySuggestion[];
+  raw_model_output: string;
+};
+
+export async function extractTimetableFromImage(token: string, file: File): Promise<TimetableSuggestion> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/calendar/extract-from-image`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: form,
+  });
+  if (!res.ok) {
+    if (res.status === 503) throw new Error("KI-Agent (Ollama) ist gerade nicht erreichbar.");
+    throw new Error("Konnte Stundenplan nicht erkennen");
+  }
+  return res.json();
+}
+
+export async function postponeToNextLesson(token: string, homeworkId: string): Promise<Homework> {
+  const res = await fetch(`${API_BASE}/homework/${homeworkId}/postpone-to-next-lesson`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    if (res.status === 422) throw new Error("Kein Stundenplan-Eintrag für dieses Fach hinterlegt");
+    throw new Error("Konnte Hausaufgabe nicht verschieben");
+  }
+  return res.json();
+}
+
 export type Workload = {
   level: "green" | "yellow" | "red";
   minutes_needed: number;

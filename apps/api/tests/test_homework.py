@@ -78,6 +78,64 @@ def test_only_creator_or_admin_can_delete_homework(client):
     assert resp2.status_code == 204
 
 
+def test_postpone_to_next_lesson_fails_without_timetable_entry(client):
+    admin = register(client)
+    admin_token = admin["access_token"]
+    subjects = client.get("/classes/me/subjects", headers=auth_headers(admin_token)).json()
+    hw = make_homework(client, admin_token, subjects[0]["id"])
+
+    resp = client.post(f"/homework/{hw['id']}/postpone-to-next-lesson", headers=auth_headers(admin_token))
+    assert resp.status_code == 422
+
+
+def test_postpone_to_next_lesson_requires_admin(client):
+    admin = register(client)
+    admin_token = admin["access_token"]
+    invite = client.get("/classes/me/invite", headers=auth_headers(admin_token)).json()
+    student = register(client, email="student2@example.com", display_name="Stu2", invite_code=invite["invite_code"])
+
+    subjects = client.get("/classes/me/subjects", headers=auth_headers(admin_token)).json()
+    hw = make_homework(client, admin_token, subjects[0]["id"])
+
+    resp = client.post(
+        f"/homework/{hw['id']}/postpone-to-next-lesson", headers=auth_headers(student["access_token"])
+    )
+    assert resp.status_code == 403
+
+
+def test_postpone_to_next_lesson_moves_due_date_to_next_weekly_lesson(client):
+    admin = register(client)
+    admin_token = admin["access_token"]
+    subjects = client.get("/classes/me/subjects", headers=auth_headers(admin_token)).json()
+    subject_id = subjects[0]["id"]
+
+    # Due on a Thursday; lesson happens weekly on Monday at 09:00 - next Monday is the
+    # next occurrence regardless of which Thursday "now" is.
+    due_at = "2026-12-24T18:00:00"  # a Thursday
+    hw = make_homework(client, admin_token, subject_id, due_at=due_at)
+
+    client.post(
+        "/calendar",
+        json={
+            "title": "Mathe",
+            "starts_at": "2026-01-05T09:00:00",  # anchor date irrelevant, only weekday+time matter
+            "ends_at": "2026-01-05T09:45:00",
+            "is_recurring_weekly": True,
+            "weekday": 0,  # Monday
+            "subject_id": subject_id,
+        },
+        headers=auth_headers(admin_token),
+    )
+
+    resp = client.post(f"/homework/{hw['id']}/postpone-to-next-lesson", headers=auth_headers(admin_token))
+    assert resp.status_code == 200
+    new_due = datetime.fromisoformat(resp.json()["due_at"])
+    assert new_due.weekday() == 0
+    assert new_due.hour == 9
+    assert new_due > datetime.fromisoformat(due_at)
+    assert new_due - datetime.fromisoformat(due_at) <= timedelta(days=7)
+
+
 def test_planning_endpoint_returns_shape(client):
     admin = register(client)
     admin_token = admin["access_token"]

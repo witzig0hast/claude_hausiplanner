@@ -1,7 +1,16 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { deleteHomework, fetchAgentSummary, fetchMyHomework, fetchWorkload, Homework, toggleComplete, Workload } from "../../lib/api";
+import {
+  deleteHomework,
+  fetchAgentSummary,
+  fetchMyHomework,
+  fetchWorkload,
+  Homework,
+  postponeToNextLesson,
+  toggleComplete,
+  Workload,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 const LEVEL_COLOR: Record<Workload["level"], string> = { green: "#22c55e", yellow: "#f59e0b", red: "#ef4444" };
@@ -65,6 +74,16 @@ export default function HomeScreen() {
     ]);
   }
 
+  async function handlePostpone(hw: Homework) {
+    if (!token) return;
+    try {
+      await postponeToNextLesson(token, hw.id);
+      load();
+    } catch {
+      Alert.alert("Nicht möglich", "Kein Stundenplan-Eintrag für dieses Fach hinterlegt.");
+    }
+  }
+
   return (
     <View style={styles.container}>
       {workload && (
@@ -93,9 +112,14 @@ export default function HomeScreen() {
                 <Text style={styles.tagText}>{item.subject.name}</Text>
               </View>
               {user?.is_class_admin && (
-                <Pressable onPress={() => handleDelete(item)} hitSlop={8}>
-                  <Text style={styles.deleteText}>Löschen</Text>
-                </Pressable>
+                <View style={styles.adminActions}>
+                  <Pressable onPress={() => handlePostpone(item)} hitSlop={8}>
+                    <Text style={styles.postponeText}>Nächste Stunde</Text>
+                  </Pressable>
+                  <Pressable onPress={() => handleDelete(item)} hitSlop={8}>
+                    <Text style={styles.deleteText}>Löschen</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
             <Text style={styles.cardTitle}>{item.title}</Text>
@@ -127,6 +151,8 @@ const styles = StyleSheet.create({
   cardHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   tag: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 },
   tagText: { color: "#0f1115", fontWeight: "700", fontSize: 12 },
+  adminActions: { flexDirection: "row", gap: 16 },
+  postponeText: { color: "#3b82f6", fontSize: 13, fontWeight: "600" },
   deleteText: { color: "#ef4444", fontSize: 13, fontWeight: "600" },
   cardTitle: { color: "#f2f3f5", fontSize: 17, fontWeight: "600" },
   cardDesc: { color: "#9aa0aa", marginTop: 4 },

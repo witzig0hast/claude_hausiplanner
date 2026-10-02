@@ -98,6 +98,14 @@ export async function deleteHomework(token: string, homeworkId: string) {
   return handle<void>(res);
 }
 
+export async function postponeToNextLesson(token: string, homeworkId: string): Promise<Homework> {
+  const res = await fetch(`${API_BASE}/homework/${homeworkId}/postpone-to-next-lesson`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  return handle<Homework>(res);
+}
+
 export type HomeworkSuggestion = {
   subject_guess: string | null;
   title: string;

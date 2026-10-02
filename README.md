@@ -204,7 +204,12 @@ Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadlin
 - `POST /homework/extract-from-image` - Foto der Tafel/eines Aufgabenblatts an ein
   Ollama-Vision-Modell (Standard: `llava`, per `HOMEWORK_OLLAMA_VISION_MODEL` änderbar)
   schicken; liefert einen Vorschlag (Fach/Titel/Deadline), erstellt aber nichts automatisch
-- `POST /calendar/extract-from-image` (nur Admin) - gleiche Idee für den Stundenplan
+- `POST /calendar/extract-from-image` (nur Admin) - gleiche Idee für den Stundenplan; in der
+  Web-UI unter Einstellungen → Stundenplan/Kalender als Foto-Upload mit editierbarer Vorschau
+  (Fach/Wochentag/Zeit pro erkannter Stunde, vor dem Anlegen noch korrigierbar)
+- `POST /homework/{id}/postpone-to-next-lesson` (nur Admin) - verschiebt die Deadline auf die
+  nächste wiederkehrende Stunde dieses Fachs laut Stundenplan (z.B. wenn eine Stunde ausfällt);
+  `422` falls für das Fach kein wiederkehrender Stundenplan-Eintrag hinterlegt ist
 - `POST /voice/capture` - Audio-Datei einer eingesprochenen Hausaufgabe; liefert einen
   Vorschlag und legt ihn pro Nutzer als "offen" ab
 - `GET /voice/pending-suggestion` - der aktuell offene Sprach-Vorschlag des Nutzers (falls

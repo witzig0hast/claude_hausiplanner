@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarEvent,
   ClassInvite,
   demoteMember,
   downloadIcsExport,
+  extractTimetableFromImage,
   fetchClassStats,
   fetchMembers,
   Member,
@@ -66,6 +67,12 @@ export default function SettingsPage() {
   const [eventDate, setEventDate] = useState("");
   const [eventStart, setEventStart] = useState("08:00");
   const [eventEnd, setEventEnd] = useState("08:45");
+
+  type DraftLesson = { included: boolean; subjectName: string; weekday: number; start: string; end: string };
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [timetablePreview, setTimetablePreview] = useState<DraftLesson[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -198,6 +205,64 @@ export default function SettingsPage() {
     if (!token) return;
     await deleteCalendarEvent(token, id);
     refresh();
+  }
+
+  async function handleScanTimetable(file: File) {
+    if (!token) return;
+    setScanning(true);
+    setScanError(null);
+    setTimetablePreview(null);
+    try {
+      const result = await extractTimetableFromImage(token, file);
+      const drafts: DraftLesson[] = result.entries.map((entry) => {
+        const weekdayIndex = WEEKDAYS.findIndex((w) => w.toLowerCase() === entry.weekday_guess?.toLowerCase());
+        return {
+          included: true,
+          subjectName: entry.subject_guess || "",
+          weekday: weekdayIndex >= 0 ? weekdayIndex : 0,
+          start: /^\d{2}:\d{2}$/.test(entry.starts_at_guess) ? entry.starts_at_guess : "08:00",
+          end: /^\d{2}:\d{2}$/.test(entry.ends_at_guess) ? entry.ends_at_guess : "08:45",
+        };
+      });
+      setTimetablePreview(drafts);
+      if (drafts.length === 0) setScanError("Konnte keine Stunden aus dem Foto erkennen - bitte manuell eintragen.");
+    } catch (err) {
+      setScanError((err as Error).message);
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function updateDraft(index: number, patch: Partial<DraftLesson>) {
+    setTimetablePreview((prev) => (prev ? prev.map((d, i) => (i === index ? { ...d, ...patch } : d)) : prev));
+  }
+
+  async function handleApplyTimetable() {
+    if (!token || !timetablePreview) return;
+    const refDate = "2026-01-05"; // a Monday - only weekday + time matter for recurring lessons
+    const toApply = timetablePreview.filter((d) => d.included && d.subjectName.trim());
+    if (toApply.length === 0) return;
+    try {
+      for (const draft of toApply) {
+        const day = new Date(refDate);
+        day.setDate(day.getDate() + draft.weekday);
+        const iso = day.toISOString().slice(0, 10);
+        const matchedSubject = subjects.find((s) => s.name.toLowerCase() === draft.subjectName.trim().toLowerCase());
+        await createCalendarEvent(token, {
+          title: draft.subjectName.trim(),
+          starts_at: `${iso}T${draft.start}:00`,
+          ends_at: `${iso}T${draft.end}:00`,
+          is_recurring_weekly: true,
+          weekday: draft.weekday,
+          subject_id: matchedSubject ? matchedSubject.id : null,
+        });
+      }
+      setTimetablePreview(null);
+      refresh();
+    } catch (err) {
+      setScanError((err as Error).message);
+    }
   }
 
   if (!user) return null;
@@ -397,8 +462,80 @@ export default function SettingsPage() {
               <div className="card-header-title">Stundenplan / Kalender</div>
             </div>
             <p className="muted" style={{ marginBottom: 16 }}>
-              Da die WebUntis-API der Schule gesperrt ist, pflegst du den Stundenplan hier manuell.
+              Da die WebUntis-API der Schule gesperrt ist, pflegst du den Stundenplan hier manuell -
+              oder lässt ihn aus einem Foto deines Wochenplans vorschlagen.
             </p>
+
+            <div className="row" style={{ marginBottom: 8 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleScanTimetable(file);
+                }}
+                style={{ marginBottom: 0 }}
+                disabled={scanning}
+              />
+            </div>
+            {scanning && <p className="faint" style={{ marginBottom: 12 }}>Stundenplan wird erkannt...</p>}
+            {scanError && <p style={{ color: "#f19999", marginBottom: 12 }}>{scanError}</p>}
+
+            {timetablePreview && timetablePreview.length > 0 && (
+              <div className="card" style={{ background: "var(--surface-alt)", marginBottom: 16 }}>
+                <p className="section-title" style={{ marginTop: 0 }}>Erkannte Stunden - bitte prüfen</p>
+                <div className="stack">
+                  {timetablePreview.map((draft, i) => (
+                    <div key={i} className="row wrap" style={{ alignItems: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={draft.included}
+                        onChange={(e) => updateDraft(i, { included: e.target.checked })}
+                      />
+                      <input
+                        placeholder="Fach"
+                        value={draft.subjectName}
+                        onChange={(e) => updateDraft(i, { subjectName: e.target.value })}
+                        style={{ marginBottom: 0, flex: 1, minWidth: 100 }}
+                        list="known-subjects"
+                      />
+                      <select
+                        value={draft.weekday}
+                        onChange={(e) => updateDraft(i, { weekday: Number(e.target.value) })}
+                        style={{ marginBottom: 0, flex: 1, minWidth: 110 }}
+                      >
+                        {WEEKDAYS.slice(0, 5).map((w, wi) => (
+                          <option key={w} value={wi}>{w}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="time"
+                        value={draft.start}
+                        onChange={(e) => updateDraft(i, { start: e.target.value })}
+                        style={{ marginBottom: 0, width: 100 }}
+                      />
+                      <input
+                        type="time"
+                        value={draft.end}
+                        onChange={(e) => updateDraft(i, { end: e.target.value })}
+                        style={{ marginBottom: 0, width: 100 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <datalist id="known-subjects">
+                  {subjects.map((s) => <option key={s.id} value={s.name} />)}
+                </datalist>
+                <div className="row" style={{ marginTop: 14 }}>
+                  <button type="button" className="ghost" onClick={() => setTimetablePreview(null)}>Verwerfen</button>
+                  <button type="button" onClick={handleApplyTimetable}>Übernehmen</button>
+                </div>
+              </div>
+            )}
+
+            <hr className="divider" />
+            <p className="field-label" style={{ marginBottom: 10 }}>Oder manuell eintragen</p>
             <form onSubmit={handleAddEvent}>
               <label className="field-label">Titel</label>
               <input placeholder="z.B. Mathe" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />

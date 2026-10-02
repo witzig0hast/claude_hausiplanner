@@ -1,12 +1,13 @@
 import uuid
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.deps import require_class_member
+from app.deps import require_class_admin, require_class_member
+from app.models.calendar_event import CalendarEvent
 from app.models.homework import Homework, HomeworkCompletion
 from app.models.school_class import SchoolClass
 from app.models.subject import Subject
@@ -25,6 +26,15 @@ def _serialize(hw: Homework, viewer_id: uuid.UUID | None) -> HomeworkOut:
     out.completed_count = len(hw.completions)
     out.completed_by_me = viewer_id is not None and any(c.user_id == viewer_id for c in hw.completions)
     return out
+
+
+def _next_occurrence(after: datetime, weekday: int, lesson_time: time) -> datetime:
+    """Next datetime strictly after `after` that falls on `weekday` at `lesson_time`."""
+    days_ahead = (weekday - after.weekday()) % 7
+    candidate = datetime.combine(after.date() + timedelta(days=days_ahead), lesson_time)
+    if candidate <= after:
+        candidate += timedelta(days=7)
+    return candidate
 
 
 @router.get("/public/classes/{class_id}/homework", response_model=list[HomeworkOut])
@@ -159,6 +169,41 @@ def delete_homework(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the creator or an admin can delete this")
     db.delete(hw)
     db.commit()
+
+
+@router.post("/homework/{homework_id}/postpone-to-next-lesson", response_model=HomeworkOut)
+def postpone_to_next_lesson(
+    homework_id: uuid.UUID,
+    user: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
+):
+    """Fällt die Stunde aus? Admin kann die Deadline auf die nächste Stunde dieses
+    Fachs laut Stundenplan verschieben, statt sie manuell neu zu berechnen."""
+    hw = db.get(Homework, homework_id)
+    if hw is None or hw.school_class_id != user.school_class_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Homework not found")
+
+    lessons = (
+        db.query(CalendarEvent)
+        .filter(
+            CalendarEvent.school_class_id == user.school_class_id,
+            CalendarEvent.subject_id == hw.subject_id,
+            CalendarEvent.is_recurring_weekly.is_(True),
+            CalendarEvent.weekday.isnot(None),
+        )
+        .all()
+    )
+    if not lessons:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Kein wiederkehrender Stundenplan-Eintrag für dieses Fach hinterlegt",
+        )
+
+    candidates = [_next_occurrence(hw.due_at, lesson.weekday, lesson.starts_at.time()) for lesson in lessons]
+    hw.due_at = min(candidates)
+    db.commit()
+    db.refresh(hw)
+    return _serialize(hw, viewer_id=user.id)
 
 
 @router.post("/homework/{homework_id}/complete", response_model=HomeworkOut)

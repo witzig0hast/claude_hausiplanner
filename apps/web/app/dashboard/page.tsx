@@ -11,6 +11,7 @@ import {
   fetchPendingSuggestion,
   Homework,
   PendingSuggestion,
+  postponeToNextLesson,
   Subject,
   toggleComplete,
   User,
@@ -18,7 +19,7 @@ import {
 import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
 import { SuggestionModal } from "../../components/SuggestionModal";
-import { ClockIcon, ListIcon, MicIcon, PlusIcon, TrashIcon, TrendIcon } from "../../components/icons";
+import { CalendarIcon, ClockIcon, ListIcon, MicIcon, PlusIcon, TrashIcon, TrendIcon } from "../../components/icons";
 import AgentPanel from "./AgentPanel";
 
 function formatDue(due: string) {
@@ -166,6 +167,17 @@ function DashboardInner() {
     }
   }
 
+  async function handlePostpone(hw: Homework) {
+    if (!token) return;
+    try {
+      const updated = await postponeToNextLesson(token, hw.id);
+      setItems((prev) => prev.map((i) => (i.id === hw.id ? updated : i)));
+      showToast("Auf nächste Stunde verschoben");
+    } catch (err) {
+      showToast((err as Error).message, "error");
+    }
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!token || !subjectId || !dueAt) return;
@@ -224,13 +236,22 @@ function DashboardInner() {
                   {hw.subject.name}
                 </span>
                 {isAdmin && (
-                  <button
-                    className="ghost"
-                    title="Hausaufgabe löschen"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(hw); }}
-                  >
-                    <TrashIcon size={15} />
-                  </button>
+                  <div className="row" style={{ gap: 4 }}>
+                    <button
+                      className="ghost"
+                      title="Auf nächste Stunde verschieben (z.B. wenn die Stunde ausfällt)"
+                      onClick={(e) => { e.stopPropagation(); handlePostpone(hw); }}
+                    >
+                      <CalendarIcon size={15} />
+                    </button>
+                    <button
+                      className="ghost"
+                      title="Hausaufgabe löschen"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(hw); }}
+                    >
+                      <TrashIcon size={15} />
+                    </button>
+                  </div>
                 )}
               </div>
               <h3>{hw.title}</h3>
