@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
 from app.models.calendar_event import CalendarEvent
+from app.models.lesson_period import LessonPeriod
 from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.calendar_event import CalendarEventCreate, CalendarEventOut
@@ -45,8 +46,12 @@ async def extract_timetable(
     subject_names = [
         s.name for s in db.query(Subject).filter(Subject.school_class_id == user.school_class_id).all()
     ]
+    periods = [
+        {"number": p.number, "start_time": p.start_time, "end_time": p.end_time}
+        for p in db.query(LessonPeriod).filter(LessonPeriod.school_class_id == user.school_class_id).all()
+    ]
     try:
-        suggestion = await extract_timetable_from_image(image_bytes, subject_names)
+        suggestion = await extract_timetable_from_image(image_bytes, subject_names, periods)
     except VisionUnavailableError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
     return TimetableSuggestion(**suggestion)

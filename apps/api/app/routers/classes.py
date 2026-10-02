@@ -7,10 +7,13 @@ from app.config import settings
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
 from app.models.homework import Homework
+from app.models.lesson_period import LessonPeriod
 from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.school_class import (
     ClassInviteOut,
+    LessonPeriodCreate,
+    LessonPeriodOut,
     MemberOut,
     SchoolClassOut,
     SubjectCreate,
@@ -64,6 +67,44 @@ def delete_subject(
 ):
     db.query(Subject).filter(
         Subject.id == subject_id, Subject.school_class_id == user.school_class_id
+    ).delete()
+    db.commit()
+
+
+@router.get("/me/periods", response_model=list[LessonPeriodOut])
+def list_periods(user: User = Depends(require_class_member), db: Session = Depends(get_db)):
+    return (
+        db.query(LessonPeriod)
+        .filter(LessonPeriod.school_class_id == user.school_class_id)
+        .order_by(LessonPeriod.number.asc())
+        .all()
+    )
+
+
+@router.post("/me/periods", response_model=LessonPeriodOut)
+def create_period(
+    payload: LessonPeriodCreate,
+    user: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
+):
+    """Festlegen, wie die Unterrichtsstunden dieser Klasse tatsächlich liegen (z.B. "1.
+    Stunde: 08:00-08:45") - die Stundenplan-Fotoerkennung ordnet jede erkannte Stunde nur
+    noch einer dieser Nummern zu, statt selbst eine Uhrzeit zu erraten."""
+    period = LessonPeriod(**payload.model_dump(), school_class_id=user.school_class_id)
+    db.add(period)
+    db.commit()
+    db.refresh(period)
+    return period
+
+
+@router.delete("/me/periods/{period_id}", status_code=204)
+def delete_period(
+    period_id: str,
+    user: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
+):
+    db.query(LessonPeriod).filter(
+        LessonPeriod.id == period_id, LessonPeriod.school_class_id == user.school_class_id
     ).delete()
     db.commit()
 

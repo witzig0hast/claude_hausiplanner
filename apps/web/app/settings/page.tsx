@@ -5,11 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   CalendarEvent,
   ClassInvite,
+  createLessonPeriod,
   demoteMember,
+  deleteLessonPeriod,
   downloadIcsExport,
   extractTimetableFromImage,
   fetchClassStats,
+  fetchLessonPeriods,
   fetchMembers,
+  LessonPeriod,
   Member,
   promoteMember,
   Subject,
@@ -28,6 +32,7 @@ import { AppShell } from "../../components/AppShell";
 import {
   BookIcon,
   CalendarIcon,
+  ClockIcon,
   ShareIcon,
   SlidersIcon,
   TrendIcon,
@@ -53,6 +58,9 @@ export default function SettingsPage() {
   const [invite, setInvite] = useState<ClassInvite | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [periods, setPeriods] = useState<LessonPeriod[]>([]);
+  const [newPeriodStart, setNewPeriodStart] = useState("08:00");
+  const [newPeriodEnd, setNewPeriodEnd] = useState("08:45");
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<SubjectStat[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -101,15 +109,17 @@ export default function SettingsPage() {
   async function refresh() {
     if (!token) return;
     try {
-      const [inv, subj, evs, mem] = await Promise.all([
+      const [inv, subj, evs, per, mem] = await Promise.all([
         fetchInvite(token),
         fetchMySubjects(token),
         fetchCalendarEvents(token),
+        fetchLessonPeriods(token),
         fetchMembers(token),
       ]);
       setInvite(inv);
       setSubjects(subj);
       setEvents(evs);
+      setPeriods(per);
       setMembers(mem);
       if (user?.is_class_admin) {
         fetchClassStats(token).then(setStats).catch(() => {});
@@ -166,6 +176,24 @@ export default function SettingsPage() {
   async function handleDeleteSubject(id: string) {
     if (!token) return;
     await deleteSubject(token, id);
+    refresh();
+  }
+
+  async function handleAddPeriod(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      const nextNumber = periods.length > 0 ? Math.max(...periods.map((p) => p.number)) + 1 : 1;
+      await createLessonPeriod(token, { number: nextNumber, start_time: newPeriodStart, end_time: newPeriodEnd });
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDeletePeriod(id: string) {
+    if (!token) return;
+    await deleteLessonPeriod(token, id);
     refresh();
   }
 
@@ -296,6 +324,13 @@ export default function SettingsPage() {
       setScanError((err as Error).message);
     }
   }
+
+  // The class's own fixed period grid (if set up) always wins over times merely derived
+  // from a scan result - it's the ground truth the admin entered, scans just confirm it.
+  const timeSlotOptions =
+    periods.length > 0
+      ? periods.map((p) => ({ number: p.number, start: p.start_time, end: p.end_time }))
+      : detectedSlots.map((s, i) => ({ number: i + 1, start: s.start, end: s.end }));
 
   if (!user) return null;
 
@@ -498,6 +533,46 @@ export default function SettingsPage() {
               oder lässt ihn aus einem Foto deines Wochenplans vorschlagen.
             </p>
 
+            <div className="card" style={{ background: "var(--surface-alt)", marginBottom: 16 }}>
+              <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
+                <ClockIcon size={16} />
+                <p className="section-title" style={{ margin: 0 }}>Stunden-Raster</p>
+              </div>
+              <p className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
+                Trage hier einmalig die echten Uhrzeiten eurer Schulstunden ein. Die Foto-Erkennung
+                ordnet jede erkannte Stunde dann nur noch einer dieser Nummern zu, statt selbst eine
+                Uhrzeit zu erraten - so kann sie bei den Zeiten nichts mehr falsch machen.
+              </p>
+              {periods.length > 0 && (
+                <div className="stack" style={{ marginBottom: 12 }}>
+                  {periods.map((p) => (
+                    <div key={p.id} className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                      <span>{p.number}. Stunde: {p.start_time}–{p.end_time}</span>
+                      <button className="ghost" onClick={() => handleDeletePeriod(p.id)}>Löschen</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form onSubmit={handleAddPeriod} className="row wrap" style={{ alignItems: "center" }}>
+                <input
+                  type="time"
+                  value={newPeriodStart}
+                  onChange={(e) => setNewPeriodStart(e.target.value)}
+                  style={{ marginBottom: 0, width: 100 }}
+                />
+                <span className="muted">–</span>
+                <input
+                  type="time"
+                  value={newPeriodEnd}
+                  onChange={(e) => setNewPeriodEnd(e.target.value)}
+                  style={{ marginBottom: 0, width: 100 }}
+                />
+                <button type="submit" style={{ flexShrink: 0 }}>
+                  Als {periods.length > 0 ? Math.max(...periods.map((p) => p.number)) + 1 : 1}. Stunde hinzufügen
+                </button>
+              </form>
+            </div>
+
             <div className="row" style={{ marginBottom: 8 }}>
               <input
                 ref={fileInputRef}
@@ -558,9 +633,9 @@ export default function SettingsPage() {
                         }}
                         style={{ marginBottom: 0, minWidth: 170 }}
                       >
-                        {detectedSlots.map((slot, si) => (
-                          <option key={si} value={`${slot.start}|${slot.end}`}>
-                            {si + 1}. Stunde ({slot.start}–{slot.end})
+                        {timeSlotOptions.map((slot) => (
+                          <option key={slot.number} value={`${slot.start}|${slot.end}`}>
+                            {slot.number}. Stunde ({slot.start}–{slot.end})
                           </option>
                         ))}
                         <option value="custom">Eigene Zeit…</option>

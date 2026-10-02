@@ -1,5 +1,6 @@
 from app.models.calendar_event import CalendarEvent
 from app.models.homework import Homework, HomeworkCompletion
+from app.models.lesson_period import LessonPeriod
 from app.models.push_token import PushToken, SentReminder
 from app.models.school_class import SchoolClass
 from app.models.subject import Subject
@@ -11,6 +12,7 @@ __all__ = [
     "CalendarEvent",
     "Homework",
     "HomeworkCompletion",
+    "LessonPeriod",
     "PendingHomeworkSuggestion",
     "PushToken",
     "SentReminder",

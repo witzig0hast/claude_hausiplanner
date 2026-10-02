@@ -56,3 +56,19 @@ class SubjectStatOut(BaseModel):
     subject_color: str
     homework_count: int
     avg_completion_rate: float  # 0..1, average across that subject's homework items
+
+
+class LessonPeriodCreate(BaseModel):
+    number: int
+    start_time: str  # "HH:MM"
+    end_time: str  # "HH:MM"
+
+
+class LessonPeriodOut(BaseModel):
+    id: uuid.UUID
+    number: int
+    start_time: str
+    end_time: str
+
+    class Config:
+        from_attributes = True

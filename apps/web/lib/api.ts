@@ -131,6 +131,35 @@ export async function deleteSubject(token: string, subjectId: string) {
   if (!res.ok) throw new Error("Konnte Fach nicht löschen");
 }
 
+export type LessonPeriod = { id: string; number: number; start_time: string; end_time: string };
+
+export async function fetchLessonPeriods(token: string): Promise<LessonPeriod[]> {
+  const res = await fetch(`${API_BASE}/classes/me/periods`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Stunden-Raster nicht laden");
+  return res.json();
+}
+
+export async function createLessonPeriod(
+  token: string,
+  payload: { number: number; start_time: string; end_time: string }
+): Promise<LessonPeriod> {
+  const res = await fetch(`${API_BASE}/classes/me/periods`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Konnte Stunde nicht anlegen (nur Admin)");
+  return res.json();
+}
+
+export async function deleteLessonPeriod(token: string, periodId: string) {
+  const res = await fetch(`${API_BASE}/classes/me/periods/${periodId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Konnte Stunde nicht löschen");
+}
+
 export type ClassInvite = { invite_code: string; join_url: string; public_view_url: string };
 
 export async function fetchInvite(token: string): Promise<ClassInvite> {
