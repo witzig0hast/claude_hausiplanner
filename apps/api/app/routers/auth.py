@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.school_class import SchoolClass
@@ -144,7 +145,21 @@ def set_priorities_enabled(
 @router.post("/me/test-email", status_code=status.HTTP_204_NO_CONTENT)
 def send_test_email(user: User = Depends(get_current_user)):
     if not email_is_configured():
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "SMTP ist auf dem Server nicht konfiguriert")
+        # Names exactly which .env variable the container is missing, rather than a generic
+        # "not configured" - a value that's actually set in .env but never reached the running
+        # container (not rebuilt/recreated after editing .env, typo'd variable name, wrong file
+        # looked at) looks identical to "never configured" from here, so be specific.
+        missing = []
+        if not settings.smtp_host:
+            missing.append("SMTP_HOST")
+        if not settings.smtp_from_email:
+            missing.append("SMTP_FROM_EMAIL")
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "SMTP ist auf dem Server nicht konfiguriert - es fehlt: " + ", ".join(missing) + ". "
+            "Falls das in der .env bereits gesetzt ist: Container mit 'docker compose up -d' neu "
+            "erstellen (ein reiner Neustart liest keine geänderte .env ein).",
+        )
     try:
         send_email(
             user.email,

@@ -218,6 +218,12 @@ Scheduler-Job, der auch die Push-Erinnerung auslöst).
 - Ein SMTP-Fehler (falsche Zugangsdaten, Server nicht erreichbar) bricht nur den Mailversand für
   diesen einen Nutzer ab - die Push-Erinnerung und das Tracking ("schon erinnert") laufen normal
   weiter.
+- **Testen:** Unter Einstellungen → "Test-E-Mail senden" schickt der Server eine Test-Mail an den
+  eigenen Account. Meldet er dabei "SMTP nicht konfiguriert", obwohl die `.env` die Werte bereits
+  enthält: Nach einer Änderung an der `.env` reicht `docker compose restart api` **nicht** - der
+  Container muss neu erstellt werden (`docker compose up -d api`), sonst läuft er weiter mit dem
+  alten Environment. Zur Kontrolle direkt im Container nachsehen:
+  `docker compose exec api env | grep HOMEWORK_SMTP`.
 
 ## Weitere Endpoints
 
