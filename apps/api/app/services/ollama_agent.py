@@ -34,8 +34,11 @@ die Felder "due_date_guess"/"due_next_lesson" - nimm sie NIEMALS zusätzlich in 
 Antworte NUR mit einem JSON-Objekt, ohne weitere Erklärung, in exakt diesem Format:
 {{"subject_guess": "<im Transkript genanntes Schulfach oder null>", "title": "<kurzer, abgekürzter Titel ohne Fristangabe>", "description": "<weitere Details aus der Transkription ohne Fristangabe, oder null>", "due_date_guess": "<Datum im Format JJJJ-MM-TT falls ein konkretes Datum/Tag erkennbar ist (auch aus relativen Angaben wie \\"morgen\\" oder \\"nächsten Montag\\" ausgehend vom heutigen Datum), sonst null>", "due_next_lesson": <true, wenn die Frist "bis zur nächsten [Fach-]Stunde" ist (die genaue Zeit kommt dann aus dem Stundenplan, nicht von dir) - sonst false>}}
 
-Beispiele:
-Transkript "Mathe, Seite 42 Aufgabe 3, bis morgen" -> {{"subject_guess": "Mathematik", "title": "S. 42/3", "description": null, "due_date_guess": "<morgiges Datum>", "due_next_lesson": false}}
+due_date_guess ist entweder null oder GENAU eine Zeichenkette im Format JJJJ-MM-TT (zehn Zeichen,
+z.B. "2026-10-04") - niemals in spitzen Klammern, niemals mit zusätzlichem Text drumherum.
+
+Beispiele (angenommen heute wäre der 2026-10-03, ein Samstag):
+Transkript "Mathe, Seite 42 Aufgabe 3, bis morgen" -> {{"subject_guess": "Mathematik", "title": "S. 42/3", "description": null, "due_date_guess": "2026-10-04", "due_next_lesson": false}}
 Transkript "Mathe aus Aufgabe Seite 23 Nummer 4 bis nächste Stunde" -> {{"subject_guess": "Mathematik", "title": "S. 23/4", "description": null, "due_date_guess": null, "due_next_lesson": true}}
 
 Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
@@ -257,6 +260,14 @@ async def extract_homework_from_voice(transcript: str, known_subjects: list[str]
     parsed.setdefault("description", None)
     parsed.setdefault("due_date_guess", None)
     parsed["due_next_lesson"] = bool(parsed.get("due_next_lesson"))
+
+    # The DB column is a strict "JJJJ-MM-TT" (10 chars) - never trust the model to stick to
+    # that format (it has, for example, wrapped the date in "<...>" despite instructions not
+    # to), or an oversized/malformed value crashes the save with a DB error instead of just
+    # being dropped here.
+    due_date_guess = parsed.get("due_date_guess")
+    if not (isinstance(due_date_guess, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", due_date_guess)):
+        parsed["due_date_guess"] = None
 
     # The model invented a title/description with zero words from the actual transcript -
     # a telltale hallucination. Fall back to the transcript itself rather than keep nonsense.
