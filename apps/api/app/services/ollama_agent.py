@@ -244,6 +244,17 @@ def _shares_no_words_with(text: str, transcript: str) -> bool:
     return text_words.isdisjoint(transcript_words)
 
 
+def _numbers_hallucinated(text: str, transcript: str) -> bool:
+    """`_shares_no_words_with` alone misses a wrong page/exercise number (e.g. transcript says
+    "Seite 33 Nummer 4" but the model writes "S. 42/3") since "Mathe" still overlaps - any
+    digit sequence in the text that doesn't appear anywhere in the transcript is invented."""
+    text_numbers = set(re.findall(r"\d+", text))
+    if not text_numbers:
+        return False
+    transcript_numbers = set(re.findall(r"\d+", transcript))
+    return not text_numbers.issubset(transcript_numbers)
+
+
 async def extract_homework_from_voice(transcript: str, known_subjects: list[str]) -> dict:
     """Turns a dictated voice note transcript into a homework suggestion - same shape as
     the photo-based extraction (vision_agent.extract_homework_from_image)."""
@@ -284,11 +295,14 @@ async def extract_homework_from_voice(transcript: str, known_subjects: list[str]
     if not (isinstance(due_date_guess, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", due_date_guess)):
         parsed["due_date_guess"] = None
 
-    # The model invented a title/description with zero words from the actual transcript -
-    # a telltale hallucination. Fall back to the transcript itself rather than keep nonsense.
-    if _shares_no_words_with(parsed.get("title") or "", transcript):
+    # The model invented a title/description with zero words from the actual transcript, or
+    # invented a page/exercise number that was never said - both are telltale hallucinations.
+    # Fall back to the transcript itself rather than keep nonsense.
+    title = parsed.get("title") or ""
+    if _shares_no_words_with(title, transcript) or _numbers_hallucinated(title, transcript):
         parsed["title"] = transcript[:200] or "Hausaufgabe"
-    if parsed.get("description") and _shares_no_words_with(parsed["description"], transcript):
+    description = parsed.get("description")
+    if description and (_shares_no_words_with(description, transcript) or _numbers_hallucinated(description, transcript)):
         parsed["description"] = None
 
     return parsed
