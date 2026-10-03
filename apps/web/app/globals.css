@@ -202,11 +202,15 @@ main {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  padding: 28px;
+  padding: 32px;
   width: 100%;
-  max-width: 460px;
+  max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+@media (max-width: 520px) {
+  .modal { padding: 22px 18px; border-radius: var(--radius-md); }
 }
 
 @keyframes modal-fade-in {
@@ -777,4 +781,32 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 @media (max-width: 520px) {
   main { padding: 0 14px 60px; }
   .chat-bubble { max-width: 92%; }
+
+  h1 { font-size: 22px; }
+  h3 { font-size: 14px; }
+
+  .card { padding: 18px 16px; }
+  .card-header { gap: 8px; margin-bottom: 14px; }
+  .card-header-icon { width: 26px; height: 26px; }
+
+  .stat-grid { gap: 8px; }
+  .stat-tile { padding: 12px 14px; }
+  .stat-tile-value { font-size: 22px; }
+
+  .top-bar { gap: 10px; }
+  .top-bar > * { width: 100%; }
+  .top-bar .row > button { flex: 1; justify-content: center; }
+
+  button { padding: 10px 16px; }
+
+  .copy-row { flex-direction: column; align-items: stretch; }
+  .copy-row input { font-size: 12px; }
+
+  /* Any row that doesn't explicitly opt out of wrapping gets to wrap on narrow screens -
+     a blanket fix so controls (inputs/selects/buttons placed side by side on desktop) stack
+     instead of overflowing or getting squeezed illegibly, without touching every page. */
+  .row:not(.no-mobile-wrap) { flex-wrap: wrap; }
+
+  table { font-size: 12.5px; }
+  .overflow-x-auto, [style*="overflow-x"] { -webkit-overflow-scrolling: touch; }
 }

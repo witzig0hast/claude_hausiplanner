@@ -11,6 +11,7 @@ import re
 import httpx
 
 from app.config import settings
+from app.services.subject_matching import resolve_subject_name
 
 HOMEWORK_PROMPT = """Du bist ein OCR-Assistent. Lies zuerst jedes sichtbare Wort auf dem Foto
 (Tafel, Aufgabenblatt oder Heft) sorgfältig, bevor du antwortest. Rate nichts, das du nicht
@@ -120,49 +121,6 @@ Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevo
 # Words the vision model sometimes echoes from the instructions themselves (a known llava
 # failure mode) instead of actually reading the image - never plausible subject names.
 _HALLUCINATION_MARKERS = {"nur", "ja", "nein", "kein", "keine", "unbekannt", "fach", "leer"}
-
-# Common German school subject abbreviations, used only as a fallback when the abbreviation
-# doesn't match one of the class's own subjects - so "E" becomes a suggestion ("Englisch")
-# the admin can still overrule, never a silent guess the admin can't see was made.
-_SUBJECT_ABBREVIATIONS = {
-    "d": "Deutsch", "e": "Englisch", "m": "Mathematik", "ma": "Mathematik", "mat": "Mathematik",
-    "ph": "Physik", "phu": "Physik", "c": "Chemie", "ch": "Chemie", "cu": "Chemie",
-    "bio": "Biologie", "b": "Biologie", "g": "Geschichte", "ges": "Geschichte",
-    "geo": "Erdkunde", "ek": "Erdkunde", "ku": "Kunst", "mu": "Musik",
-    "sp": "Sport", "sm": "Sport", "sw": "Sport", "inf": "Informatik",
-    "reli": "Religion", "re": "Religion", "eth": "Ethik", "f": "Französisch",
-    "fr": "Französisch", "la": "Latein", "sowi": "Politik", "pug": "Politik",
-    "wr": "Wirtschaft/Recht", "span": "Spanisch", "spa": "Spanisch",
-}
-
-
-def _resolve_subject(raw: str, known_subjects: list[str]) -> str:
-    """Turn a (possibly abbreviated) OCR'd subject into a suggested full name - preferring
-    the class's own subjects over a generic abbreviation table, so e.g. "E" becomes
-    "Englisch" if that's already one of the class's subjects, before falling back to the
-    generic table. Never invents a subject the admin can't trace back to the raw OCR text."""
-    text = raw.strip()
-    if not text:
-        return text
-    lowered = text.lower()
-
-    for name in known_subjects:
-        if name.lower() == lowered:
-            return name
-
-    prefix_matches = [name for name in known_subjects if name.lower().startswith(lowered)]
-    if len(prefix_matches) == 1:
-        return prefix_matches[0]
-
-    mapped = _SUBJECT_ABBREVIATIONS.get(lowered)
-    if mapped:
-        for name in known_subjects:
-            if name.lower() == mapped.lower():
-                return name
-        return mapped
-
-    return text
-
 
 def _extract_json(text: str) -> dict:
     """Find the JSON object in the model's response, ignoring any explanatory text or
@@ -329,7 +287,7 @@ async def extract_timetable_from_image(
     for entry in cleaned:
         raw_subject = (entry.get("subject_guess") or "").strip()
         entry["subject_raw"] = raw_subject
-        entry["subject_guess"] = _resolve_subject(raw_subject, known_subjects or [])
+        entry["subject_guess"] = resolve_subject_name(raw_subject, known_subjects or [])
 
     parsed["entries"] = cleaned
     parsed["low_confidence"] = low_confidence

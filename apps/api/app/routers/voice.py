@@ -15,6 +15,7 @@ from app.schemas.voice import ApplySuggestionRequest, PendingSuggestionOut
 from app.services.ollama_agent import AgentUnavailableError, extract_homework_from_voice
 from app.services.scheduling import next_occurrence
 from app.services.speech_agent import SpeechUnavailableError, transcribe_audio
+from app.services.subject_matching import resolve_subject_name
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -58,7 +59,11 @@ async def capture_voice_note(
     subject_guess = suggestion.get("subject_guess")
     matched_subject = None
     if subject_guess:
-        matched_subject = next((s for s in subjects if s.name.lower() == subject_guess.lower()), None)
+        # The model's guess rarely matches the class's own spelling exactly (e.g. "Mathematik"
+        # vs. the class's "Mathe") - resolve it the same forgiving way the photo-scan path does
+        # before looking the class subject up, instead of only ever trying an exact match.
+        resolved_guess = resolve_subject_name(subject_guess, [s.name for s in subjects])
+        matched_subject = next((s for s in subjects if s.name.lower() == resolved_guess.lower()), None)
 
     due_date_guess = suggestion.get("due_date_guess")
     due_time_guess = None
