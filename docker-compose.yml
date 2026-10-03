@@ -26,10 +26,14 @@ services:
       HOMEWORK_WHISPER_PORT: ${WHISPER_PORT:-10300}
       HOMEWORK_SMTP_HOST: ${SMTP_HOST:-}
       HOMEWORK_SMTP_PORT: ${SMTP_PORT:-587}
-      HOMEWORK_SMTP_USERNAME: ${SMTP_USERNAME:-}
+      # Accepts SMTP_USERNAME/SMTP_USE_TLS/SMTP_FROM_EMAIL (this project's documented names) or
+      # SMTP_USER/SMTP_SECURE/SMTP_FROM (another common convention) - whichever is set in .env,
+      # so a wrong name doesn't silently leave a field empty (e.g. no SMTP_USERNAME means no
+      # AUTH is sent at all, which gets the connection rejected as an anonymous relay attempt).
+      HOMEWORK_SMTP_USERNAME: ${SMTP_USERNAME:-${SMTP_USER:-}}
       HOMEWORK_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      HOMEWORK_SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
-      HOMEWORK_SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      HOMEWORK_SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-${SMTP_FROM:-}}
+      HOMEWORK_SMTP_USE_TLS: ${SMTP_USE_TLS:-${SMTP_SECURE:-true}}
     ports:
       - "8000:8000"
     extra_hosts:

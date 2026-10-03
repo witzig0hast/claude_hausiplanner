@@ -212,6 +212,13 @@ Scheduler-Job, der auch die Push-Erinnerung auslöst).
     verwendet wird. Ein Timeout oder "connection closed" beim Testen deutet meist auf den
     falschen Port für den jeweiligen Anbieter hin (z.B. 587 bei einem Anbieter versucht, der nur
     465 anbietet, oder umgekehrt).
+  - Zur Kulanz werden auch `SMTP_USER` (statt `SMTP_USERNAME`), `SMTP_SECURE` (statt
+    `SMTP_USE_TLS`) und `SMTP_FROM` (statt `SMTP_FROM_EMAIL`) akzeptiert, falls die aus einem
+    anderen Projekt kopierte `.env` diese Namen verwendet. Wird **gar keine** der beiden Varianten
+    gesetzt (z.B. Tippfehler im Variablennamen), bleibt das Feld leer, ohne Fehlermeldung beim
+    Start - äußert sich dann meist als `554 ... Access denied` beim Versand, weil ohne
+    `SMTP_USERNAME`/`SMTP_USER` kein Login versucht wird und der Server die Mail als
+    anonymen Relay-Versuch ablehnt.
 - **Pro Nutzer ein-/ausschaltbar:** Jeder Nutzer kann E-Mail-Erinnerungen unter
   Einstellungen → Tonfall-Bereich separat aktivieren/deaktivieren (`PUT /auth/me/email-reminders`,
   Standard: an). Die globale SMTP-Konfiguration betrifft also nur, *ob überhaupt* Mails
