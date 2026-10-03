@@ -207,6 +207,11 @@ Scheduler-Job, der auch die Push-Erinnerung auslöst).
   `SMTP_USE_TLS` (Standard `true`). Lokal ohne Docker die entsprechenden
   `HOMEWORK_SMTP_*`-Variablen setzen. Ohne `SMTP_HOST`+`SMTP_FROM_EMAIL` bleibt der Versand
   komplett deaktiviert (kein Fehler, einfach keine Mails).
+  - Port **465** (implizites TLS/SMTPS) und Port **587** (STARTTLS) werden beide automatisch
+    richtig verbunden - `SMTP_USE_TLS` wird bei Port 465 ignoriert, da dort immer sofort TLS
+    verwendet wird. Ein Timeout oder "connection closed" beim Testen deutet meist auf den
+    falschen Port für den jeweiligen Anbieter hin (z.B. 587 bei einem Anbieter versucht, der nur
+    465 anbietet, oder umgekehrt).
 - **Pro Nutzer ein-/ausschaltbar:** Jeder Nutzer kann E-Mail-Erinnerungen unter
   Einstellungen → Tonfall-Bereich separat aktivieren/deaktivieren (`PUT /auth/me/email-reminders`,
   Standard: an). Die globale SMTP-Konfiguration betrifft also nur, *ob überhaupt* Mails

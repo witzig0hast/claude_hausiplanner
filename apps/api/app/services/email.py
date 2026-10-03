@@ -25,11 +25,23 @@ def send_email(to: str, subject: str, body: str) -> None:
     msg["To"] = to
 
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
-            if settings.smtp_use_tls:
-                server.starttls()
-            if settings.smtp_username and settings.smtp_password:
-                server.login(settings.smtp_username, settings.smtp_password)
-            server.send_message(msg)
+        # Port 465 is implicit TLS (SMTPS) - the server expects a TLS handshake from the very
+        # first byte. Opening a plain SMTP() connection and calling starttls() on it (fine for
+        # 587) makes a 465 server either hang until our timeout or drop the connection the
+        # moment it receives a plaintext EHLO instead of a TLS ClientHello - exactly the
+        # "unexpected connection closed"/timeout symptom. SMTP_SSL establishes TLS immediately
+        # instead, matching what a working client (e.g. nodemailer's secure:true) does for 465.
+        if settings.smtp_port == 465:
+            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+                if settings.smtp_username and settings.smtp_password:
+                    server.login(settings.smtp_username, settings.smtp_password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+                if settings.smtp_use_tls:
+                    server.starttls()
+                if settings.smtp_username and settings.smtp_password:
+                    server.login(settings.smtp_username, settings.smtp_password)
+                server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         raise EmailUnavailableError(f"E-Mail-Versand fehlgeschlagen: {exc}") from exc
