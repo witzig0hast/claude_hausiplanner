@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { applySuggestion, dismissSuggestion, Homework, PendingSuggestion, Subject } from "../lib/api";
+import { InfoIcon } from "./icons";
 
 export function SuggestionModal({
   token,
@@ -80,8 +81,28 @@ export function SuggestionModal({
               </select>
             </div>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <label className="field-label">Fällig</label>
+              <label className="field-label row" style={{ gap: 5 }}>
+                Fällig
+                {suggestion.due_is_estimated && (
+                  <span
+                    title={
+                      `Geschätzter Vorschlag: "bis zur nächsten Stunde" konnte nicht über den ` +
+                      `Stundenplan aufgelöst werden (Fach unbekannt oder noch keine Stunde dafür ` +
+                      `eingetragen) - lege den Stundenplan für dieses Fach an, damit die genaue ` +
+                      `Stunde erkannt wird, oder passe die Zeit hier manuell an.`
+                    }
+                    style={{ cursor: "help", color: "var(--accent-bright)", display: "inline-flex" }}
+                  >
+                    <InfoIcon size={13} />
+                  </span>
+                )}
+              </label>
               <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required />
+              {suggestion.due_is_estimated && (
+                <p className="faint" style={{ marginTop: -8, marginBottom: 12 }}>
+                  Geschätzt (kein Stundenplan-Eintrag gefunden) - bitte prüfen
+                </p>
+              )}
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
@@ -62,9 +62,11 @@ async def capture_voice_note(
 
     due_date_guess = suggestion.get("due_date_guess")
     due_time_guess = None
-    if suggestion.get("due_next_lesson") and matched_subject is not None:
+    due_is_estimated = False
+    if suggestion.get("due_next_lesson"):
         # "bis zur nächsten Stunde" - resolved from the class's own timetable, never guessed
-        # by the model, so the exact day and time are always correct if a timetable exists.
+        # by the model, so the exact day and time are correct whenever a timetable exists
+        # for that subject.
         lessons = (
             db.query(CalendarEvent)
             .filter(
@@ -74,12 +76,23 @@ async def capture_voice_note(
                 CalendarEvent.weekday.isnot(None),
             )
             .all()
+            if matched_subject is not None
+            else []
         )
         if lessons:
             now = datetime.utcnow()
             next_lesson = min(next_occurrence(now, lesson.weekday, lesson.starts_at.time()) for lesson in lessons)
             due_date_guess = next_lesson.strftime("%Y-%m-%d")
             due_time_guess = next_lesson.strftime("%H:%M")
+        else:
+            # No subject match, or no timetable entry for it yet - we genuinely don't know
+            # when "die nächste Stunde" is. Rather than silently default to an unlabeled
+            # time, propose a clearly-marked rough guess (tomorrow evening) the admin can
+            # see is an estimate and correct, instead of mistaking it for a real lesson time.
+            fallback = datetime.utcnow() + timedelta(days=1)
+            due_date_guess = fallback.strftime("%Y-%m-%d")
+            due_time_guess = "20:00"
+            due_is_estimated = True
 
     existing = db.query(PendingHomeworkSuggestion).filter(PendingHomeworkSuggestion.user_id == user.id).first()
     if existing:
@@ -95,6 +108,7 @@ async def capture_voice_note(
         description=suggestion.get("description"),
         due_date_guess=due_date_guess,
         due_time_guess=due_time_guess,
+        due_is_estimated=due_is_estimated,
     )
     db.add(row)
     db.commit()

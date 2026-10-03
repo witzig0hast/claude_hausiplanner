@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,6 +28,10 @@ class PendingHomeworkSuggestion(Base):
     # Set only when the transcript said "bis zur nächsten Stunde" and the class's own
     # timetable could resolve a precise lesson time - never guessed by the model itself.
     due_time_guess: Mapped[str | None] = mapped_column(String(5), nullable=True)  # "HH:MM"
+    # True when "bis zur nächsten Stunde" could NOT be resolved from a real timetable entry
+    # (unknown subject or no lesson configured yet) and due_date/time_guess are therefore a
+    # rough placeholder ("morgen Abend"), not a real lesson time - shown to the admin as such.
+    due_is_estimated: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     subject: Mapped["Subject"] = relationship()

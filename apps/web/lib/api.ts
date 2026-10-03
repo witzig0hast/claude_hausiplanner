@@ -390,6 +390,7 @@ export type PendingSuggestion = {
   description: string | null;
   due_date_guess: string | null;
   due_time_guess: string | null;
+  due_is_estimated: boolean;
   created_at: string;
 };
 
