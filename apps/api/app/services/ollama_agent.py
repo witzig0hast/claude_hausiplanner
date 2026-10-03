@@ -46,13 +46,26 @@ Bekannte Fächer dieser Klasse (bevorzuge diese, falls passend): {subjects}
 
 TONE_INSTRUCTIONS = {
     "locker": "Locker, freundlich, wie ein entspannter älterer Freund. Kein Alarmismus, kein erhobener Zeigefinger.",
-    "streng": "Direkt und bestimmt, wie eine strenge aber faire Lehrkraft. Klar sagen, was ansteht, ohne unhöflich zu werden.",
+    "streng": "Direkt und bestimmt, wie ein disziplinierter Trainer. Klar sagen, was ansteht, ohne unhöflich zu werden.",
 }
+
+# Shared across every student-facing prompt: this app has no teacher role - homework is
+# entered by classmates (often the class admin, who is also just a student) for the whole
+# class to share, never "assigned" by a named person. Without this, models default to
+# generic "homework" framing and invent a teacher-like assigner, which is simply wrong here
+# and was surfacing as a hallucinated name in the dashboard summary.
+NO_ASSIGNER_INSTRUCTION = (
+    "Es gibt in dieser App keine Lehrkraft und keine Person, die Hausaufgaben \"aufgibt\" oder "
+    "\"zuweist\" - Mitschüler tragen sie nur für die ganze Klasse ein. Erwähne NIEMALS einen "
+    "Namen oder eine Person im Zusammenhang mit einer Hausaufgabe (nicht einmal vage wie \"dein "
+    "Lehrer\" oder \"diejenige Person\") - sprich ausschließlich über Fach, Aufgabe und Frist."
+)
 
 SUMMARY_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {tone}
 Fasse in maximal 2 kurzen Sätzen (unter 35 Wörtern) zusammen, was an Hausaufgaben ansteht.
 Nutze AUSSCHLIESSLICH die unten gelisteten Hausaufgaben - erfinde keine zusätzlichen Fächer,
 Aufgaben, Zahlen oder Fristen, die dort nicht stehen. Wenn die Liste leer ist, sag das auch so.
+""" + NO_ASSIGNER_INSTRUCTION + """
 Auf Deutsch, ein entspannter Hinweis, kein Alarm.
 
 Offene Hausaufgaben von {name}:
@@ -64,6 +77,7 @@ Schreibe eine kurze, freundliche E-Mail (max. 80 Wörter) an {name}. Erinnere un
 daran, dass die folgende Hausaufgabe noch nicht als erledigt markiert ist und bald fällig ist.
 Nutze AUSSCHLIESSLICH die folgenden Fakten - erfinde keine zusätzlichen Details, Fristen oder
 Aufgaben, die dort nicht stehen.
+""" + NO_ASSIGNER_INSTRUCTION + """
 
 Fach: {subject}
 Aufgabe: {title}
@@ -77,6 +91,7 @@ CHAT_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {ton
 Antworte kurz und konkret auf Deutsch (max. 100 Wörter), basierend NUR auf dem Kontext unten -
 erfinde keine Hausaufgaben, Fächer oder Termine, die dort nicht auftauchen.
 Wenn die Frage nichts mit Hausaufgaben/Zeitplanung zu tun hat, beantworte sie trotzdem freundlich.
+""" + NO_ASSIGNER_INSTRUCTION + """
 
 Offene Hausaufgaben von {name}:
 {items}

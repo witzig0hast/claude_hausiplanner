@@ -2,12 +2,15 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhos
 
 export type Subject = { id: string; name: string; color: string; icon: string };
 
+export type Priority = "niedrig" | "normal" | "hoch";
+
 export type Homework = {
   id: string;
   title: string;
   description: string | null;
   due_at: string;
   estimated_minutes: number | null;
+  priority: Priority | null;
   subject: Subject;
   completed_by_me: boolean;
   completed_count: number;
@@ -21,6 +24,9 @@ export type User = {
   school_class_id: string | null;
   agent_tone: "locker" | "streng";
   email_reminders_enabled: boolean;
+  digest_enabled: boolean;
+  deadline_push_enabled: boolean;
+  priorities_enabled: boolean;
 };
 
 function authHeaders(token: string | null): HeadersInit {
@@ -80,7 +86,14 @@ export async function fetchMyHomework(token: string): Promise<Homework[]> {
 
 export async function createHomework(
   token: string,
-  payload: { title: string; description?: string; due_at: string; subject_id: string; estimated_minutes?: number }
+  payload: {
+    title: string;
+    description?: string;
+    due_at: string;
+    subject_id: string;
+    estimated_minutes?: number;
+    priority?: Priority;
+  }
 ) {
   const res = await fetch(`${API_BASE}/homework`, {
     method: "POST",
@@ -326,6 +339,37 @@ export async function setEmailReminders(token: string, enabled: boolean): Promis
   return res.json();
 }
 
+export async function setNotificationPrefs(
+  token: string,
+  prefs: { digest_enabled: boolean; deadline_push_enabled: boolean }
+): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/notifications`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(prefs),
+  });
+  if (!res.ok) throw new Error("Konnte Benachrichtigungen nicht ändern");
+  return res.json();
+}
+
+export async function setPrioritiesEnabled(token: string, enabled: boolean): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/priorities`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error("Konnte Dringlichkeitsstufen nicht ändern");
+  return res.json();
+}
+
+export async function sendTestEmail(token: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/me/test-email`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Konnte Test-E-Mail nicht senden"));
+}
+
 export type Member = { id: string; display_name: string; email: string; is_class_admin: boolean };
 
 export async function fetchMembers(token: string): Promise<Member[]> {
@@ -444,6 +488,7 @@ export async function createHomeworkWithRepeat(
     subject_id: string;
     estimated_minutes?: number;
     repeat_weeks?: number;
+    priority?: Priority;
   }
 ) {
   const res = await fetch(`${API_BASE}/homework`, {

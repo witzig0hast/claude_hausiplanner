@@ -28,6 +28,9 @@ class UserOut(BaseModel):
     school_class_id: uuid.UUID | None
     agent_tone: str
     email_reminders_enabled: bool
+    digest_enabled: bool
+    deadline_push_enabled: bool
+    priorities_enabled: bool
 
     class Config:
         from_attributes = True
@@ -38,6 +41,15 @@ class SetAgentToneRequest(BaseModel):
 
 
 class SetEmailRemindersRequest(BaseModel):
+    enabled: bool
+
+
+class SetNotificationPrefsRequest(BaseModel):
+    digest_enabled: bool
+    deadline_push_enabled: bool
+
+
+class SetPrioritiesEnabledRequest(BaseModel):
     enabled: bool
 
 

@@ -12,6 +12,7 @@ import {
   Homework,
   PendingSuggestion,
   postponeToNextLesson,
+  Priority,
   Subject,
   toggleComplete,
   User,
@@ -64,6 +65,7 @@ function DashboardInner() {
   const [dueAt, setDueAt] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [repeatWeeks, setRepeatWeeks] = useState(0);
+  const [priority, setPriority] = useState<Priority | "">("");
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
@@ -188,11 +190,13 @@ function DashboardInner() {
         due_at: new Date(dueAt).toISOString(),
         subject_id: subjectId,
         repeat_weeks: repeatWeeks || undefined,
+        priority: priority || undefined,
       });
       setTitle("");
       setDescription("");
       setDueAt("");
       setRepeatWeeks(0);
+      setPriority("");
       setShowForm(false);
       refresh();
       showToast("Hausaufgabe gespeichert");
@@ -204,6 +208,7 @@ function DashboardInner() {
   if (!user) return null;
 
   const isAdmin = user.is_class_admin;
+  const prioritiesEnabled = user.priorities_enabled;
   const openCount = items.filter((i) => !i.completed_by_me).length;
   const { today: dueTodayAll } = groupByDue(items.filter((i) => !i.completed_by_me));
   const dueTodayCount = dueTodayAll.length;
@@ -231,10 +236,18 @@ function DashboardInner() {
           {group.map((hw) => (
             <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
               <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
-                <span className="subject-tag" style={{ marginBottom: 0 }}>
-                  <span className="subject-dot" style={{ background: hw.subject.color }} />
-                  {hw.subject.name}
-                </span>
+                <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                  <span className="subject-tag" style={{ marginBottom: 0 }}>
+                    <span className="subject-dot" style={{ background: hw.subject.color }} />
+                    {hw.subject.name}
+                  </span>
+                  {prioritiesEnabled && hw.priority === "hoch" && (
+                    <span className="pill" style={{ background: "#d9707022", color: "#d97070" }}>Hoch</span>
+                  )}
+                  {prioritiesEnabled && hw.priority === "niedrig" && (
+                    <span className="pill" style={{ background: "var(--surface)", color: "var(--muted)" }}>Niedrig</span>
+                  )}
+                </div>
                 {isAdmin && (
                   <div className="row" style={{ gap: 4 }}>
                     <button
@@ -374,6 +387,18 @@ function DashboardInner() {
             <option value={4}>+ 4 weitere Wochen</option>
             <option value={8}>+ 8 weitere Wochen</option>
           </select>
+
+          {user.priorities_enabled && (
+            <>
+              <label className="field-label">Dringlichkeit</label>
+              <select value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")}>
+                <option value="">Normal</option>
+                <option value="niedrig">Niedrig</option>
+                <option value="normal">Normal</option>
+                <option value="hoch">Hoch</option>
+              </select>
+            </>
+          )}
 
           <button type="submit">Speichern</button>
         </form>

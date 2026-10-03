@@ -15,6 +15,9 @@ class Homework(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_at: Mapped[datetime] = mapped_column(DateTime)
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Only meaningful when the creator's "priorities_enabled" setting is on - "niedrig" |
+    # "normal" | "hoch", or null if never set (treated the same as "normal").
+    priority: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("school_classes.id"))

@@ -17,6 +17,14 @@ class User(Base):
     is_class_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     agent_tone: Mapped[str] = mapped_column(String(16), default="locker")  # "locker" | "streng"
     email_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Which message types the agent is allowed to send this user - independent of whether a
+    # push token or SMTP is even configured, so a user can mute one channel without affecting
+    # the other (email_reminders_enabled above is channel-specific, these are message-type).
+    digest_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    deadline_push_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Opt-in: shows a priority field on homework and a badge on cards. Off by default so the
+    # UI doesn't gain a field most classes never asked for.
+    priorities_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID | None] = mapped_column(

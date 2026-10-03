@@ -12,11 +12,14 @@ from app.schemas.auth import (
     RegisterRequest,
     SetAgentToneRequest,
     SetEmailRemindersRequest,
+    SetNotificationPrefsRequest,
+    SetPrioritiesEnabledRequest,
     TokenResponse,
     UserOut,
 )
 from app.security import create_access_token, hash_password, verify_password
 from app.services.defaults import DEFAULT_SUBJECTS
+from app.services.email import EmailUnavailableError, is_configured as email_is_configured, send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -111,3 +114,42 @@ def set_email_reminders(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.put("/me/notifications", response_model=UserOut)
+def set_notification_prefs(
+    payload: SetNotificationPrefsRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    user.digest_enabled = payload.digest_enabled
+    user.deadline_push_enabled = payload.deadline_push_enabled
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/me/priorities", response_model=UserOut)
+def set_priorities_enabled(
+    payload: SetPrioritiesEnabledRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    user.priorities_enabled = payload.enabled
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/me/test-email", status_code=status.HTTP_204_NO_CONTENT)
+def send_test_email(user: User = Depends(get_current_user)):
+    if not email_is_configured():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "SMTP ist auf dem Server nicht konfiguriert")
+    try:
+        send_email(
+            user.email,
+            "Test-E-Mail vom Hausaufgabenplaner",
+            f"Hi {user.display_name},\n\ndiese Test-E-Mail bestätigt, dass E-Mail-Erinnerungen bei dir ankommen.\n\nDein Hausaufgabenplaner",
+        )
+    except EmailUnavailableError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc

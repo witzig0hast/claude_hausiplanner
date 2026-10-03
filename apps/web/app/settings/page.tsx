@@ -2,7 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { setAgentTone, setEmailReminders, User } from "../../lib/api";
+import {
+  sendTestEmail,
+  setAgentTone,
+  setEmailReminders,
+  setNotificationPrefs,
+  setPrioritiesEnabled,
+  User,
+} from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { CheckIcon, MailIcon, SlidersIcon, SunIcon } from "../../components/icons";
 import { Accent, ACCENTS, applyAccent, applyTheme, getStoredAccent, getStoredTheme, Theme } from "../../lib/theme";
@@ -13,6 +20,8 @@ export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<Theme>("dark");
   const [accent, setAccent] = useState<Accent>("green");
+  const [testEmailStatus, setTestEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [testEmailError, setTestEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -39,6 +48,46 @@ export default function SettingsPage() {
     const updated = await setEmailReminders(token, enabled);
     setUser(updated);
     localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+  }
+
+  async function handleToggleDigest(enabled: boolean) {
+    if (!token || !user) return;
+    const updated = await setNotificationPrefs(token, {
+      digest_enabled: enabled,
+      deadline_push_enabled: user.deadline_push_enabled,
+    });
+    setUser(updated);
+    localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+  }
+
+  async function handleToggleDeadlinePush(enabled: boolean) {
+    if (!token || !user) return;
+    const updated = await setNotificationPrefs(token, {
+      digest_enabled: user.digest_enabled,
+      deadline_push_enabled: enabled,
+    });
+    setUser(updated);
+    localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+  }
+
+  async function handleTogglePriorities(enabled: boolean) {
+    if (!token) return;
+    const updated = await setPrioritiesEnabled(token, enabled);
+    setUser(updated);
+    localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+  }
+
+  async function handleSendTestEmail() {
+    if (!token) return;
+    setTestEmailStatus("sending");
+    setTestEmailError(null);
+    try {
+      await sendTestEmail(token);
+      setTestEmailStatus("sent");
+    } catch (err) {
+      setTestEmailStatus("error");
+      setTestEmailError(err instanceof Error ? err.message : "Unbekannter Fehler");
+    }
   }
 
   function handleSetTheme(next: Theme) {
@@ -106,6 +155,79 @@ export default function SettingsPage() {
             type="button"
             className={!user.email_reminders_enabled ? "active" : ""}
             onClick={() => handleToggleEmailReminders(false)}
+          >
+            Aus
+          </button>
+        </div>
+        <div className="row" style={{ marginTop: 14, alignItems: "center", gap: 10 }}>
+          <button type="button" className="ghost" onClick={handleSendTestEmail} disabled={testEmailStatus === "sending"}>
+            {testEmailStatus === "sending" ? "Wird gesendet..." : "Test-E-Mail senden"}
+          </button>
+          {testEmailStatus === "sent" && <span style={{ color: "var(--accent-bright)" }}>Gesendet - schau in dein Postfach</span>}
+          {testEmailStatus === "error" && <span style={{ color: "#d97070" }}>{testEmailError}</span>}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-header-icon"><MailIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">Benachrichtigungen</div>
+            <div className="card-header-sub">Welche Nachrichten der Agent dir überhaupt schickt</div>
+          </div>
+        </div>
+
+        <p className="field-label">Abend-Zusammenfassung</p>
+        <div className="toggle-group" style={{ marginBottom: 20 }}>
+          <button type="button" className={user.digest_enabled ? "active" : ""} onClick={() => handleToggleDigest(true)}>
+            An
+          </button>
+          <button type="button" className={!user.digest_enabled ? "active" : ""} onClick={() => handleToggleDigest(false)}>
+            Aus
+          </button>
+        </div>
+
+        <p className="field-label">Fällig-bald-Erinnerung (Push)</p>
+        <div className="toggle-group">
+          <button
+            type="button"
+            className={user.deadline_push_enabled ? "active" : ""}
+            onClick={() => handleToggleDeadlinePush(true)}
+          >
+            An
+          </button>
+          <button
+            type="button"
+            className={!user.deadline_push_enabled ? "active" : ""}
+            onClick={() => handleToggleDeadlinePush(false)}
+          >
+            Aus
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-header-icon"><SlidersIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">Dringlichkeitsstufen</div>
+            <div className="card-header-sub">
+              Optional: Hausaufgaben beim Anlegen als niedrig/normal/hoch markieren
+            </div>
+          </div>
+        </div>
+        <div className="toggle-group">
+          <button
+            type="button"
+            className={user.priorities_enabled ? "active" : ""}
+            onClick={() => handleTogglePriorities(true)}
+          >
+            An
+          </button>
+          <button
+            type="button"
+            className={!user.priorities_enabled ? "active" : ""}
+            onClick={() => handleTogglePriorities(false)}
           >
             Aus
           </button>

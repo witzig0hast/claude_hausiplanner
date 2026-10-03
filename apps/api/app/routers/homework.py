@@ -93,6 +93,8 @@ def create_homework(
 ):
     data = payload.model_dump()
     repeat_weeks = data.pop("repeat_weeks", None) or 0
+    if data.get("priority") not in (None, "niedrig", "normal", "hoch"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "priority must be 'niedrig', 'normal' or 'hoch'")
 
     hw = Homework(**data, school_class_id=user.school_class_id, created_by_id=user.id)
     db.add(hw)
