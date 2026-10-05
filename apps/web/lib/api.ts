@@ -499,3 +499,31 @@ export async function createHomeworkWithRepeat(
   if (!res.ok) throw new Error("Konnte Hausaufgabe nicht erstellen");
   return res.json();
 }
+
+export type AgentBusStatus = { configured: boolean; user_email: string | null };
+
+export type AgentBusLogEntry = {
+  id: string;
+  remote_id: string;
+  direction: "inbound" | "outbound";
+  peer_label: string;
+  kind: "text" | "task";
+  content: string | null;
+  task_type: string | null;
+  payload: Record<string, unknown> | null;
+  status: string;
+  result: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export async function fetchAgentBusStatus(token: string): Promise<AgentBusStatus> {
+  const res = await fetch(`${API_BASE}/agent-bus/status`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Agent-Bus-Status nicht laden");
+  return res.json();
+}
+
+export async function fetchAgentBusLog(token: string): Promise<AgentBusLogEntry[]> {
+  const res = await fetch(`${API_BASE}/agent-bus/log`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Agent-Bus-Log nicht laden");
+  return res.json();
+}

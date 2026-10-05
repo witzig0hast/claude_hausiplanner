@@ -1,3 +1,4 @@
+from app.models.agent_bus_message import AgentBusMessage
 from app.models.calendar_event import CalendarEvent
 from app.models.homework import Homework, HomeworkCompletion
 from app.models.lesson_period import LessonPeriod
@@ -9,6 +10,7 @@ from app.models.user import User
 from app.models.voice_suggestion import PendingHomeworkSuggestion
 
 __all__ = [
+    "AgentBusMessage",
     "CalendarEvent",
     "Homework",
     "HomeworkCompletion",

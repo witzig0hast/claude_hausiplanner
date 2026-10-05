@@ -3,8 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  AgentBusLogEntry,
+  AgentBusStatus,
   createSubject,
   deleteSubject,
+  fetchAgentBusLog,
+  fetchAgentBusStatus,
   fetchClassStats,
   fetchMembers,
   fetchMySubjects,
@@ -14,7 +18,7 @@ import {
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { BookIcon, TrendIcon, UsersIcon } from "../../components/icons";
+import { BookIcon, ShareIcon, TrendIcon, UsersIcon } from "../../components/icons";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -23,6 +27,8 @@ export default function AdminPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<SubjectStat[]>([]);
+  const [busStatus, setBusStatus] = useState<AgentBusStatus | null>(null);
+  const [busLog, setBusLog] = useState<AgentBusLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [subjectName, setSubjectName] = useState("");
@@ -61,6 +67,13 @@ export default function AdminPage() {
       setStats(classStats);
     } catch {
       setError("Konnte Daten nicht laden.");
+    }
+    try {
+      const status = await fetchAgentBusStatus(token);
+      setBusStatus(status);
+      if (status.configured) setBusLog(await fetchAgentBusLog(token));
+    } catch {
+      // Agent Bus is optional - a failure here shouldn't block the rest of the admin page.
     }
   }
 
@@ -180,6 +193,36 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
+
+      {busStatus?.configured && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-header-icon"><ShareIcon size={16} /></span>
+            <div>
+              <div className="card-header-title">OwnAI Agent Bus</div>
+              <div className="card-header-sub">Letzte Nachrichten mit {busStatus.user_email}</div>
+            </div>
+          </div>
+          {busLog.length === 0 && <p className="muted">Noch keine Nachrichten.</p>}
+          <div className="stack">
+            {busLog.map((entry) => (
+              <div key={entry.id} className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div>
+                    <strong>{entry.direction === "inbound" ? "Von" : "An"} {entry.peer_label}</strong>{" "}
+                    <span className="faint">· {entry.kind === "text" ? "Text" : `Task: ${entry.task_type}`}</span>
+                  </div>
+                  {entry.content && <div className="muted">{entry.content}</div>}
+                  {!!entry.result?.error && <div style={{ color: "#f19999" }}>{String(entry.result.error)}</div>}
+                </div>
+                <span className={`pill ${entry.status === "failed" ? "red" : entry.status === "completed" ? "green" : ""}`}>
+                  {entry.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
