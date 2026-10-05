@@ -34,15 +34,17 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = None
     smtp_use_tls: bool = True
 
-    # OwnAI Agent Bus - lets this project exchange messages/tasks peer-to-peer with the user's
-    # other self-hosted projects via a central hub, without OwnAI mediating. Polling stays off
-    # entirely unless ownai_agent_bus_key is set. ownai_agent_bus_user_email names which
-    # Hausiplaner account task handlers (e.g. "list_open_homework") act on behalf of - the bus
-    # itself has no concept of "which of this class's members", only one OwnAI account per key.
+    # OwnAI Agent Bus - lets any user of this project exchange messages/tasks peer-to-peer with
+    # their own other self-hosted projects via a central hub, without OwnAI mediating. Each user
+    # connects their own OwnAI account from their own Settings page (api key + optional base_url
+    # override, stored per-user, encrypted at rest) - this is only the shared default base_url
+    # and poll interval, not a server-wide on/off switch.
     ownai_agent_bus_base_url: str = "https://ownai.hastnetwork.de/api/v1"
-    ownai_agent_bus_key: str | None = None
-    ownai_agent_bus_user_email: str | None = None
     ownai_agent_bus_poll_seconds: int = 10
+    # Encrypts every user's stored Agent Bus API key at rest (Fernet, derived from this secret) -
+    # deliberately separate from jwt_secret, same reasoning as superadmin_jwt_secret: a leaked
+    # purpose-specific secret should never unlock an unrelated one.
+    secret_encryption_key: str = "change-me-in-production"
 
     class Config:
         env_prefix = "HOMEWORK_"

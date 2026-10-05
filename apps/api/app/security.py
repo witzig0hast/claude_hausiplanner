@@ -1,9 +1,11 @@
 import base64
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
 from cryptography.exceptions import InvalidSignature
+from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from passlib.context import CryptContext
@@ -11,6 +13,24 @@ from passlib.context import CryptContext
 from app.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _fernet() -> Fernet:
+    # Fernet needs a 32-byte urlsafe-base64 key - derive one from the configured secret so
+    # settings.secret_encryption_key can stay a plain string like every other secret here.
+    key = hashlib.sha256(settings.secret_encryption_key.encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def encrypt_secret(plaintext: str) -> str:
+    return _fernet().encrypt(plaintext.encode("utf-8")).decode("ascii")
+
+
+def decrypt_secret(ciphertext: str) -> str | None:
+    try:
+        return _fernet().decrypt(ciphertext.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError):
+        return None
 
 
 def hash_password(password: str) -> str:

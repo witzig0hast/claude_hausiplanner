@@ -34,12 +34,14 @@ services:
       HOMEWORK_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       HOMEWORK_SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-${SMTP_FROM:-}}
       HOMEWORK_SMTP_USE_TLS: ${SMTP_USE_TLS:-${SMTP_SECURE:-true}}
-      # OwnAI Agent Bus - peer-to-peer messaging with the user's other self-hosted projects.
-      # Polling stays off entirely unless OWNAI_AGENT_BUS_KEY is set (register this project as
-      # an agent under Settings -> Agent Bus in OwnAI first to get the key).
+      # OwnAI Agent Bus - each user connects their own OwnAI account from their own Settings
+      # page (API key, encrypted at rest). This is only the shared default base_url (used unless
+      # a user sets their own override) - not a server-wide on/off switch or a single shared key.
       HOMEWORK_OWNAI_AGENT_BUS_BASE_URL: ${OWNAI_AGENT_BUS_BASE_URL:-https://ownai.hastnetwork.de/api/v1}
-      HOMEWORK_OWNAI_AGENT_BUS_KEY: ${OWNAI_AGENT_BUS_KEY:-}
-      HOMEWORK_OWNAI_AGENT_BUS_USER_EMAIL: ${OWNAI_AGENT_BUS_USER_EMAIL:-}
+      # Encrypts every user's stored Agent Bus API key at rest - set a random value in .env
+      # before any user connects their OwnAI account (the insecure built-in default is fine
+      # until then, same as JWT_SECRET's own default).
+      HOMEWORK_SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:-change-me-in-production}
     ports:
       - "8000:8000"
     extra_hosts:

@@ -500,7 +500,7 @@ export async function createHomeworkWithRepeat(
   return res.json();
 }
 
-export type AgentBusStatus = { configured: boolean; user_email: string | null };
+export type AgentBusStatus = { connected: boolean; enabled: boolean; base_url: string };
 
 export type AgentBusLogEntry = {
   id: string;
@@ -519,6 +519,32 @@ export type AgentBusLogEntry = {
 export async function fetchAgentBusStatus(token: string): Promise<AgentBusStatus> {
   const res = await fetch(`${API_BASE}/agent-bus/status`, { headers: authHeaders(token), cache: "no-store" });
   if (!res.ok) throw new Error("Konnte Agent-Bus-Status nicht laden");
+  return res.json();
+}
+
+export async function connectAgentBus(token: string, apiKey: string, baseUrl?: string): Promise<AgentBusStatus> {
+  const res = await fetch(`${API_BASE}/agent-bus/connect`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ api_key: apiKey, base_url: baseUrl || undefined }),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Konnte Agent Bus nicht verbinden"));
+  return res.json();
+}
+
+export async function disconnectAgentBus(token: string): Promise<AgentBusStatus> {
+  const res = await fetch(`${API_BASE}/agent-bus/connect`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Agent Bus nicht trennen");
+  return res.json();
+}
+
+export async function setAgentBusEnabled(token: string, enabled: boolean): Promise<AgentBusStatus> {
+  const res = await fetch(`${API_BASE}/agent-bus/enabled`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error("Konnte Agent Bus nicht umschalten");
   return res.json();
 }
 

@@ -240,28 +240,32 @@ Scheduler-Job, der auch die Push-Erinnerung auslöst).
 ## OwnAI Agent Bus
 
 Optionale Peer-to-Peer-Anbindung an [OwnAI](https://github.com/witzig0hast/ownai), den
-selbstgehosteten persönlichen KI-Assistenten des Betreibers - läuft über dessen Agent Bus (ein
-REST-Hub, über den registrierte Projekte direkt miteinander kommunizieren, ohne Umweg über OwnAI
-als Vermittler). Bleibt komplett inaktiv, solange `OWNAI_AGENT_BUS_KEY` nicht gesetzt ist.
+selbstgehosteten persönlichen KI-Assistenten - läuft über dessen Agent Bus (ein REST-Hub, über
+den registrierte Projekte direkt miteinander kommunizieren, ohne Umweg über OwnAI als
+Vermittler). **Pro Nutzer**, nicht serverweit: jeder Nutzer verbindet sein eigenes OwnAI-Konto
+in seinen eigenen Einstellungen → "OwnAI Agent Bus" - sinnvoll, falls mehrere Mitschüler jeweils
+ihr eigenes OwnAI betreiben.
 
-- **Setup:** In OwnAI unter Settings → Agent Bus dieses Projekt registrieren (Name z.B.
-  `hausiplanner`) - der dabei einmalig im Klartext angezeigte API-Key gehört in die `.env`:
-  `OWNAI_AGENT_BUS_KEY=ownai_ak_...`. Zusätzlich `OWNAI_AGENT_BUS_USER_EMAIL` auf die E-Mail des
-  Hausiplaner-Accounts setzen, in dessen Namen eingehende Task-Anfragen beantwortet werden (der
-  Bus kennt nur "ein OwnAI-Konto pro Key", nicht "welches Mitglied der Klasse"). Optional
-  `OWNAI_AGENT_BUS_BASE_URL` überschreiben, falls OwnAI nicht unter der Standard-Domain läuft.
+- **Setup (pro Nutzer):** In OwnAI unter Settings → Agent Bus dieses Projekt registrieren (Name
+  z.B. `hausiplanner`) - der dabei einmalig im Klartext angezeigte API-Key wird im Hausiplaner
+  unter Einstellungen eingetragen (Feld "API-Key"). Optional eine abweichende Base-URL angeben,
+  falls das eigene OwnAI nicht unter der Standard-Domain läuft. Der Key wird verschlüsselt in der
+  Datenbank gespeichert (`HOMEWORK_SECRET_ENCRYPTION_KEY` - **in Produktion unbedingt auf einen
+  eigenen Zufallswert setzen**, sonst ist der eingebaute Default-Schlüssel bekannt) und von keiner
+  API-Antwort je wieder im Klartext zurückgegeben.
 - **Eingehend:** Ein Hintergrund-Job pollt alle `OWNAI_AGENT_BUS_POLL_SECONDS` (Standard 10s) die
-  Inbox. `kind: "text"` wird als Log-Eintrag gespeichert (sichtbar im Admin-Bereich). `kind:
-  "task"` wird an einen `task_type`-Handler in `app/services/agent_bus_handlers.py` weitergereicht
-  - aktuell implementiert: `list_open_homework` (gibt alle offenen Hausaufgaben des konfigurierten
-  Nutzers zurück). Weitere `task_type`s lassen sich dort als zusätzliche Funktion + Registry-Eintrag
-  ergänzen, ganz nach Bedarf des jeweils anderen Projekts.
-- **Ausgehend:** `app/services/agent_bus_client.send_message(to, kind, ...)` steht als
-  wiederverwendbare Funktion bereit, ist aber aktuell an kein automatisches Ereignis gekoppelt -
-  noch offen, welche konkreten Ereignisse (z.B. neue Hausaufgabe mit hoher Dringlichkeit) das
-  andere Projekt interessieren sollen.
-- **Sicherheit:** Der API-Key wird nur in der eigenen `.env` gehalten, nie im Repo committed -
-  `docker-compose.yml` reicht ihn nur als Umgebungsvariable durch.
+  Inbox jedes Nutzers mit aktivierter Verbindung. `kind: "text"` wird als Log-Eintrag gespeichert
+  (sichtbar in den eigenen Einstellungen). `kind: "task"` wird an einen `task_type`-Handler in
+  `app/services/agent_bus_handlers.py` weitergereicht - aktuell implementiert: `list_open_homework`
+  (gibt alle offenen Hausaufgaben des anfragenden Nutzers zurück). Weitere `task_type`s lassen sich
+  dort als zusätzliche Funktion + Registry-Eintrag ergänzen, ganz nach Bedarf des jeweils anderen
+  Projekts.
+- **Ausgehend:** `app/services/agent_bus_client.send_message(base_url, api_key, to, kind, ...)`
+  steht als wiederverwendbare Funktion bereit, ist aber aktuell an kein automatisches Ereignis
+  gekoppelt - noch offen, welche konkreten Ereignisse (z.B. neue Hausaufgabe mit hoher
+  Dringlichkeit) das andere Projekt interessieren sollen.
+- **Pausieren ohne Trennen:** Der Toggle "Polling An/Pausiert" in den Einstellungen schaltet nur
+  das Abfragen ab, ohne den gespeicherten Key zu löschen - "Trennen" löscht ihn endgültig.
 
 ## Weitere Endpoints
 

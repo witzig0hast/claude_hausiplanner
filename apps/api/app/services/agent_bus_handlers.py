@@ -2,9 +2,9 @@
 task_type/payload shapes to whatever the two projects agree on - this is the Hausiplanner side of
 that agreement. Add a new task_type by adding a function here and registering it in HANDLERS.
 
-Every handler acts on behalf of settings.ownai_agent_bus_user_email - the bus has no concept of
-"which member of this class", only one OwnAI account per API key, so that account must map to one
-specific Hausiplanner user."""
+Every handler acts on behalf of whichever Hausiplanner user owns the OwnAI connection the task
+arrived on - the poller resolves that from the connection itself (one OwnAI account per user,
+each with their own key), so handlers just take that user directly."""
 
 from typing import Any, Awaitable, Callable
 
@@ -15,31 +15,20 @@ from app.models.homework import Homework
 from app.models.user import User
 
 HandlerResult = dict[str, Any]
-Handler = Callable[[Session, dict[str, Any] | None], Awaitable[HandlerResult]]
+Handler = Callable[[Session, User, dict[str, Any] | None], Awaitable[HandlerResult]]
 
 
 class TaskHandlerError(Exception):
-    """Raised by a handler for an expected failure (bad payload, no configured user, ...) -
+    """Raised by a handler for an expected failure (bad payload, user not in a class, ...) -
     reported back as status="failed" with this message, instead of crashing the poller."""
 
 
-def _configured_user(db: Session) -> User:
-    from app.config import settings
-
-    if not settings.ownai_agent_bus_user_email:
-        raise TaskHandlerError(
-            "OWNAI_AGENT_BUS_USER_EMAIL ist auf diesem Server nicht gesetzt - unklar, fuer wen die Anfrage gilt."
-        )
-    user = db.execute(select(User).where(User.email == settings.ownai_agent_bus_user_email)).scalar_one_or_none()
-    if user is None:
-        raise TaskHandlerError(f"Kein Nutzer mit E-Mail {settings.ownai_agent_bus_user_email} gefunden.")
-    return user
-
-
-async def list_open_homework(db: Session, payload: dict[str, Any] | None) -> HandlerResult:
-    """payload: none required. Returns every not-yet-completed homework item for the configured
+async def list_open_homework(db: Session, user: User, payload: dict[str, Any] | None) -> HandlerResult:
+    """payload: none required. Returns every not-yet-completed homework item for the requesting
     user's class, soonest due first."""
-    user = _configured_user(db)
+    if user.school_class_id is None:
+        raise TaskHandlerError(f"{user.email} ist aktuell keiner Klasse zugeordnet.")
+
     items = (
         db.execute(
             select(Homework)

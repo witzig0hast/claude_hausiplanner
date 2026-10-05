@@ -3,7 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  AgentBusLogEntry,
+  AgentBusStatus,
+  connectAgentBus,
+  disconnectAgentBus,
+  fetchAgentBusLog,
+  fetchAgentBusStatus,
   sendTestEmail,
+  setAgentBusEnabled,
   setAgentTone,
   setEmailReminders,
   setNotificationPrefs,
@@ -11,7 +18,7 @@ import {
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { CheckIcon, MailIcon, SlidersIcon, SunIcon } from "../../components/icons";
+import { CheckIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
 import { Accent, ACCENTS, applyAccent, applyTheme, getStoredAccent, getStoredTheme, Theme } from "../../lib/theme";
 
 export default function SettingsPage() {
@@ -22,6 +29,13 @@ export default function SettingsPage() {
   const [accent, setAccent] = useState<Accent>("green");
   const [testEmailStatus, setTestEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [testEmailError, setTestEmailError] = useState<string | null>(null);
+
+  const [busStatus, setBusStatus] = useState<AgentBusStatus | null>(null);
+  const [busLog, setBusLog] = useState<AgentBusLogEntry[]>([]);
+  const [busApiKey, setBusApiKey] = useState("");
+  const [busBaseUrl, setBusBaseUrl] = useState("");
+  const [busError, setBusError] = useState<string | null>(null);
+  const [busBusy, setBusBusy] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -34,6 +48,13 @@ export default function SettingsPage() {
     setUser(JSON.parse(u));
     setTheme(getStoredTheme());
     setAccent(getStoredAccent());
+    fetchAgentBusStatus(t)
+      .then((status) => {
+        setBusStatus(status);
+        setBusBaseUrl(status.base_url);
+        if (status.connected) fetchAgentBusLog(t).then(setBusLog).catch(() => {});
+      })
+      .catch(() => {});
   }, [router]);
 
   async function handleSetTone(tone: "locker" | "streng") {
@@ -88,6 +109,37 @@ export default function SettingsPage() {
       setTestEmailStatus("error");
       setTestEmailError(err instanceof Error ? err.message : "Unbekannter Fehler");
     }
+  }
+
+  async function handleConnectAgentBus(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !busApiKey) return;
+    setBusBusy(true);
+    setBusError(null);
+    try {
+      const status = await connectAgentBus(token, busApiKey, busBaseUrl || undefined);
+      setBusStatus(status);
+      setBusApiKey("");
+      setBusLog(await fetchAgentBusLog(token));
+    } catch (err) {
+      setBusError(err instanceof Error ? err.message : "Unbekannter Fehler");
+    } finally {
+      setBusBusy(false);
+    }
+  }
+
+  async function handleDisconnectAgentBus() {
+    if (!token) return;
+    if (!confirm("Agent-Bus-Verbindung wirklich trennen? Der gespeicherte Key wird gelöscht.")) return;
+    const status = await disconnectAgentBus(token);
+    setBusStatus(status);
+    setBusLog([]);
+  }
+
+  async function handleToggleAgentBusEnabled(enabled: boolean) {
+    if (!token) return;
+    const status = await setAgentBusEnabled(token, enabled);
+    setBusStatus(status);
   }
 
   function handleSetTheme(next: Theme) {
@@ -232,6 +284,86 @@ export default function SettingsPage() {
             Aus
           </button>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-header-icon"><ShareIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">OwnAI Agent Bus</div>
+            <div className="card-header-sub">
+              Verbinde dein eigenes OwnAI-Konto, um Hausaufgaben-Anfragen und Nachrichten mit
+              deinen anderen Projekten auszutauschen
+            </div>
+          </div>
+        </div>
+
+        {busStatus?.connected ? (
+          <>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <span className="pill green">Verbunden · {busStatus.base_url}</span>
+              <button type="button" className="ghost" onClick={handleDisconnectAgentBus}>Trennen</button>
+            </div>
+            <p className="field-label">Polling</p>
+            <div className="toggle-group" style={{ marginBottom: 20 }}>
+              <button
+                type="button"
+                className={busStatus.enabled ? "active" : ""}
+                onClick={() => handleToggleAgentBusEnabled(true)}
+              >
+                An
+              </button>
+              <button
+                type="button"
+                className={!busStatus.enabled ? "active" : ""}
+                onClick={() => handleToggleAgentBusEnabled(false)}
+              >
+                Pausiert
+              </button>
+            </div>
+            {busLog.length > 0 && (
+              <>
+                <p className="field-label">Letzte Nachrichten</p>
+                <div className="stack">
+                  {busLog.map((entry) => (
+                    <div key={entry.id} className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div>
+                          <strong>{entry.direction === "inbound" ? "Von" : "An"} {entry.peer_label}</strong>{" "}
+                          <span className="faint">· {entry.kind === "text" ? "Text" : `Task: ${entry.task_type}`}</span>
+                        </div>
+                        {entry.content && <div className="muted">{entry.content}</div>}
+                        {!!entry.result?.error && <div style={{ color: "#f19999" }}>{String(entry.result.error)}</div>}
+                      </div>
+                      <span className={`pill ${entry.status === "failed" ? "red" : entry.status === "completed" ? "green" : ""}`}>
+                        {entry.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <form onSubmit={handleConnectAgentBus}>
+            <label className="field-label">API-Key (aus OwnAI → Settings → Agent Bus)</label>
+            <input
+              type="password"
+              placeholder="ownai_ak_..."
+              value={busApiKey}
+              onChange={(e) => setBusApiKey(e.target.value)}
+              required
+            />
+            <label className="field-label">Base-URL (optional, falls abweichend)</label>
+            <input
+              placeholder="https://ownai.hastnetwork.de/api/v1"
+              value={busBaseUrl}
+              onChange={(e) => setBusBaseUrl(e.target.value)}
+            />
+            {busError && <p style={{ color: "#f19999", marginBottom: 12 }}>{busError}</p>}
+            <button type="submit" disabled={busBusy}>{busBusy ? "Verbinde..." : "Verbinden"}</button>
+          </form>
+        )}
       </div>
 
       <div className="card">

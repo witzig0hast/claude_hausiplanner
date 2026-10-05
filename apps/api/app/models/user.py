@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -25,6 +25,15 @@ class User(Base):
     # Opt-in: shows a priority field on homework and a badge on cards. Off by default so the
     # UI doesn't gain a field most classes never asked for.
     priorities_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # OwnAI Agent Bus - each user connects their own OwnAI account from their own Settings page.
+    # The API key is encrypted at rest (app.security.encrypt_secret/decrypt_secret), never
+    # returned by any API response once set. base_url is nullable - falls back to
+    # settings.ownai_agent_bus_base_url when unset, so most users never have to touch it.
+    ownai_agent_bus_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ownai_agent_bus_base_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ownai_agent_bus_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID | None] = mapped_column(

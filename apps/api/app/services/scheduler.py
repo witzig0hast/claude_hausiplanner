@@ -11,7 +11,6 @@ from app.database import SessionLocal
 from app.models.homework import Homework
 from app.models.push_token import SentReminder
 from app.models.user import User
-from app.services import agent_bus_client
 from app.services.agent_bus_poller import poll_agent_bus
 from app.services.email import EmailUnavailableError, is_configured as email_is_configured, send_email
 from app.services.ollama_agent import generate_email_reminder, generate_summary_for_user
@@ -91,12 +90,13 @@ def start_scheduler() -> AsyncIOScheduler:
         id="deadline_reminders",
         replace_existing=True,
     )
-    if agent_bus_client.is_configured():
-        scheduler.add_job(
-            lambda: asyncio.create_task(poll_agent_bus()),
-            IntervalTrigger(seconds=settings.ownai_agent_bus_poll_seconds),
-            id="agent_bus_poll",
-            replace_existing=True,
-        )
+    # Always registered - which users (if any) have connected their own OwnAI account is a DB
+    # query inside poll_agent_bus() itself, not a single global on/off switch.
+    scheduler.add_job(
+        lambda: asyncio.create_task(poll_agent_bus()),
+        IntervalTrigger(seconds=settings.ownai_agent_bus_poll_seconds),
+        id="agent_bus_poll",
+        replace_existing=True,
+    )
     scheduler.start()
     return scheduler

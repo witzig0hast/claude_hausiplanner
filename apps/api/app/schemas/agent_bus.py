@@ -6,8 +6,18 @@ from pydantic import BaseModel
 
 
 class AgentBusStatusOut(BaseModel):
-    configured: bool
-    user_email: str | None
+    connected: bool
+    enabled: bool
+    base_url: str  # the effective URL (user override, or the server default)
+
+
+class ConnectAgentBusRequest(BaseModel):
+    api_key: str
+    base_url: str | None = None  # None clears any per-user override, falls back to the server default
+
+
+class SetAgentBusEnabledRequest(BaseModel):
+    enabled: bool
 
 
 class AgentBusLogEntryOut(BaseModel):
