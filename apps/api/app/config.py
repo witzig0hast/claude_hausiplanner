@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # purpose-specific secret should never unlock an unrelated one.
     secret_encryption_key: str = "change-me-in-production"
 
+    # Homework material uploads (PDFs, images, office docs, ...) - stored on disk, not in the
+    # database. Must be a path on a persistent volume (see docker-compose.yml) or uploads are
+    # lost whenever the api container is recreated.
+    uploads_dir: str = "/app/uploads"
+    max_attachment_bytes: int = 20 * 1024 * 1024
+
     class Config:
         env_prefix = "HOMEWORK_"
         env_file = ".env"

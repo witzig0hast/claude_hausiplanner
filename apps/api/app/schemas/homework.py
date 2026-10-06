@@ -16,6 +16,17 @@ class HomeworkCreate(BaseModel):
     priority: str | None = None  # "niedrig" | "normal" | "hoch" - only used if the creator opted in
 
 
+class HomeworkAttachmentOut(BaseModel):
+    id: uuid.UUID
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class HomeworkOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -27,6 +38,7 @@ class HomeworkOut(BaseModel):
     subject: SubjectOut
     completed_by_me: bool = False
     completed_count: int = 0
+    attachments: list[HomeworkAttachmentOut] = []
 
     class Config:
         from_attributes = True

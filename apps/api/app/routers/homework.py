@@ -1,25 +1,35 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
 from app.models.calendar_event import CalendarEvent
 from app.models.homework import Homework, HomeworkCompletion
+from app.models.homework_attachment import HomeworkAttachment
 from app.models.school_class import SchoolClass
 from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.homework import HomeworkCreate, HomeworkOut
 from app.schemas.vision import HomeworkSuggestion
+from app.services.attachment_storage import (
+    AttachmentTooLargeError,
+    AttachmentTypeNotAllowedError,
+    delete_attachment,
+    read_attachment,
+    save_attachment,
+)
 from app.services.scheduling import next_occurrence
 from app.services.vision_agent import VisionUnavailableError, extract_homework_from_image
 
 router = APIRouter(tags=["homework"])
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+
+_ATTACHMENT_OPTIONS = (joinedload(Homework.subject), joinedload(Homework.completions), joinedload(Homework.attachments))
 
 
 def _serialize(hw: Homework, viewer_id: uuid.UUID | None) -> HomeworkOut:
@@ -37,7 +47,7 @@ def public_homework(class_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Class not found")
     items = (
         db.query(Homework)
-        .options(joinedload(Homework.subject), joinedload(Homework.completions))
+        .options(*_ATTACHMENT_OPTIONS)
         .filter(Homework.school_class_id == class_id)
         .order_by(Homework.due_at.asc())
         .all()
@@ -52,7 +62,7 @@ def list_homework(
 ):
     items = (
         db.query(Homework)
-        .options(joinedload(Homework.subject), joinedload(Homework.completions))
+        .options(*_ATTACHMENT_OPTIONS)
         .filter(Homework.school_class_id == user.school_class_id)
         .order_by(Homework.due_at.asc())
         .all()
@@ -120,7 +130,7 @@ def export_ics(user: User = Depends(require_class_member), db: Session = Depends
     """Offene Hausaufgaben als .ics - importierbar in Apple/Google/Outlook Kalender."""
     items = (
         db.query(Homework)
-        .options(joinedload(Homework.subject), joinedload(Homework.completions))
+        .options(*_ATTACHMENT_OPTIONS)
         .filter(Homework.school_class_id == user.school_class_id)
         .order_by(Homework.due_at.asc())
         .all()
@@ -161,8 +171,11 @@ def delete_homework(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Homework not found")
     if hw.created_by_id != user.id and not user.is_class_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the creator or an admin can delete this")
+    attachment_ids = [a.id for a in hw.attachments]
     db.delete(hw)
     db.commit()
+    for attachment_id in attachment_ids:
+        delete_attachment(attachment_id)
 
 
 @router.post("/homework/{homework_id}/postpone-to-next-lesson", response_model=HomeworkOut)
@@ -239,3 +252,82 @@ def uncomplete_homework(
     db.commit()
     db.refresh(hw)
     return _serialize(hw, viewer_id=user.id)
+
+
+@router.post("/homework/{homework_id}/attachments", response_model=HomeworkOut)
+async def upload_attachment(
+    homework_id: uuid.UUID,
+    file: UploadFile = File(...),
+    user: User = Depends(require_class_member),
+    db: Session = Depends(get_db),
+):
+    """Material (PDF, Foto, Office-Dokument, ...) zu einer Hausaufgabe hochladen - sichtbar für
+    die ganze Klasse, nicht nur den Hochladenden."""
+    hw = db.get(Homework, homework_id)
+    if hw is None or hw.school_class_id != user.school_class_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Homework not found")
+
+    data = await file.read()
+    attachment = HomeworkAttachment(
+        homework_id=hw.id,
+        uploaded_by_id=user.id,
+        filename=file.filename or "Datei",
+        content_type=file.content_type or "application/octet-stream",
+        size_bytes=len(data),
+    )
+    db.add(attachment)
+    db.flush()  # assigns attachment.id without committing yet
+
+    try:
+        save_attachment(attachment.id, attachment.content_type, data)
+    except AttachmentTypeNotAllowedError as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, str(exc)) from exc
+    except AttachmentTooLargeError as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(exc)) from exc
+
+    db.commit()
+    db.refresh(hw)
+    return _serialize(hw, viewer_id=user.id)
+
+
+@router.get("/homework/{homework_id}/attachments/{attachment_id}/download")
+def download_attachment(
+    homework_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    """Kein Login nötig - Materialien sind so sichtbar wie die Hausaufgabe selbst (auch über den
+    öffentlichen Klassen-Link), nicht strenger geschützt als /public/classes/{id}/homework."""
+    attachment = db.get(HomeworkAttachment, attachment_id)
+    if attachment is None or attachment.homework_id != homework_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    data = read_attachment(attachment.id)
+    if data is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Datei nicht mehr auf dem Server vorhanden")
+    return StreamingResponse(
+        iter([data]),
+        media_type=attachment.content_type,
+        headers={"Content-Disposition": f'attachment; filename="{attachment.filename}"'},
+    )
+
+
+@router.delete("/homework/{homework_id}/attachments/{attachment_id}", status_code=204)
+def delete_homework_attachment(
+    homework_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    user: User = Depends(require_class_member),
+    db: Session = Depends(get_db),
+):
+    attachment = db.get(HomeworkAttachment, attachment_id)
+    if attachment is None or attachment.homework_id != homework_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+    hw = db.get(Homework, homework_id)
+    if hw is None or hw.school_class_id != user.school_class_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Homework not found")
+    if attachment.uploaded_by_id != user.id and not user.is_class_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the uploader or an admin can delete this")
+    db.delete(attachment)
+    db.commit()
+    delete_attachment(attachment_id)

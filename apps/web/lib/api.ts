@@ -4,6 +4,14 @@ export type Subject = { id: string; name: string; color: string; icon: string };
 
 export type Priority = "niedrig" | "normal" | "hoch";
 
+export type HomeworkAttachment = {
+  id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 export type Homework = {
   id: string;
   title: string;
@@ -14,6 +22,7 @@ export type Homework = {
   subject: Subject;
   completed_by_me: boolean;
   completed_count: number;
+  attachments: HomeworkAttachment[];
 };
 
 export type User = {
@@ -119,6 +128,30 @@ export async function deleteHomework(token: string, homeworkId: string) {
     headers: authHeaders(token),
   });
   if (!res.ok) throw new Error("Konnte Hausaufgabe nicht löschen");
+}
+
+export async function uploadAttachment(token: string, homeworkId: string, file: File): Promise<Homework> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/homework/${homeworkId}/attachments`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Konnte Datei nicht hochladen"));
+  return res.json();
+}
+
+export function attachmentDownloadUrl(homeworkId: string, attachmentId: string): string {
+  return `${API_BASE}/homework/${homeworkId}/attachments/${attachmentId}/download`;
+}
+
+export async function deleteAttachment(token: string, homeworkId: string, attachmentId: string) {
+  const res = await fetch(`${API_BASE}/homework/${homeworkId}/attachments/${attachmentId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Konnte Datei nicht löschen");
 }
 
 export async function fetchMySubjects(token: string): Promise<Subject[]> {

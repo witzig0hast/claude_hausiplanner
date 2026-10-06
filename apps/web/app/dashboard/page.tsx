@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
+  attachmentDownloadUrl,
   captureVoiceNote,
   createHomeworkWithRepeat,
+  deleteAttachment,
   deleteHomework,
   fetchMyHomework,
   fetchMySubjects,
@@ -15,13 +17,30 @@ import {
   Priority,
   Subject,
   toggleComplete,
+  uploadAttachment,
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
 import { SuggestionModal } from "../../components/SuggestionModal";
-import { CalendarIcon, ClockIcon, ListIcon, MicIcon, PlusIcon, TrashIcon, TrendIcon } from "../../components/icons";
+import {
+  CalendarIcon,
+  ClockIcon,
+  FileIcon,
+  ListIcon,
+  MicIcon,
+  PaperclipIcon,
+  PlusIcon,
+  TrashIcon,
+  TrendIcon,
+} from "../../components/icons";
 import AgentPanel from "./AgentPanel";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function formatDue(due: string) {
   return new Date(due).toLocaleString("de-DE", {
@@ -75,6 +94,8 @@ function DashboardInner() {
   const [transcribing, setTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -166,6 +187,34 @@ function DashboardInner() {
     } catch {
       setItems(previous);
       showToast("Konnte Hausaufgabe nicht löschen", "error");
+    }
+  }
+
+  async function handleUpload(hw: Homework, file: File) {
+    if (!token) return;
+    setUploadingFor(hw.id);
+    try {
+      const updated = await uploadAttachment(token, hw.id, file);
+      setItems((prev) => prev.map((i) => (i.id === hw.id ? updated : i)));
+      showToast("Material hochgeladen");
+    } catch (err) {
+      showToast((err as Error).message, "error");
+    } finally {
+      setUploadingFor(null);
+    }
+  }
+
+  async function handleDeleteAttachment(hw: Homework, attachmentId: string) {
+    if (!token) return;
+    if (!confirm("Diese Datei wirklich löschen?")) return;
+    try {
+      await deleteAttachment(token, hw.id, attachmentId);
+      setItems((prev) =>
+        prev.map((i) => (i.id === hw.id ? { ...i, attachments: i.attachments.filter((a) => a.id !== attachmentId) } : i))
+      );
+      showToast("Datei gelöscht");
+    } catch {
+      showToast("Konnte Datei nicht löschen", "error");
     }
   }
 
@@ -273,13 +322,68 @@ function DashboardInner() {
                 Fällig {formatDue(hw.due_at)}
                 {hw.completed_count > 0 && <span> · {hw.completed_count} Mitschüler erledigt</span>}
               </p>
-              <button
-                className={hw.completed_by_me ? "secondary" : ""}
-                style={{ marginTop: 14, width: "100%" }}
-                onClick={() => handleToggle(hw)}
-              >
-                {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren"}
-              </button>
+
+              {hw.attachments.length > 0 && (
+                <div className="stack" style={{ marginTop: 10, gap: 6 }}>
+                  {hw.attachments.map((a) => (
+                    <div key={a.id} className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                      <a
+                        href={attachmentDownloadUrl(hw.id, a.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="row"
+                        style={{ gap: 6, alignItems: "center", textDecoration: "none", color: "var(--text)" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <FileIcon size={14} />
+                        <span style={{ fontSize: 14 }}>{a.filename}</span>
+                        <span className="faint">· {formatFileSize(a.size_bytes)}</span>
+                      </a>
+                      <button
+                        className="ghost"
+                        title="Datei löschen"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteAttachment(hw, a.id); }}
+                      >
+                        <TrashIcon size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <input
+                type="file"
+                style={{ display: "none" }}
+                ref={(el) => {
+                  if (el) fileInputRefs.current.set(hw.id, el);
+                  else fileInputRefs.current.delete(hw.id);
+                }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(hw, file);
+                  e.target.value = "";
+                }}
+              />
+              <div className="row" style={{ marginTop: 14, gap: 8 }}>
+                <button
+                  className="secondary"
+                  style={{ flex: 1 }}
+                  disabled={uploadingFor === hw.id}
+                  onClick={(e) => { e.stopPropagation(); fileInputRefs.current.get(hw.id)?.click(); }}
+                >
+                  <span className="row" style={{ gap: 6, justifyContent: "center" }}>
+                    <PaperclipIcon size={14} />
+                    {uploadingFor === hw.id ? "Lädt hoch..." : "Material"}
+                  </span>
+                </button>
+                <button
+                  className={hw.completed_by_me ? "secondary" : ""}
+                  style={{ flex: 2 }}
+                  onClick={() => handleToggle(hw)}
+                >
+                  {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren"}
+                </button>
+              </div>
             </div>
           ))}
         </div>

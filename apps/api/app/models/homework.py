@@ -31,6 +31,9 @@ class Homework(Base):
     completions: Mapped[list["HomeworkCompletion"]] = relationship(
         back_populates="homework", cascade="all, delete-orphan"
     )
+    attachments: Mapped[list["HomeworkAttachment"]] = relationship(
+        back_populates="homework", cascade="all, delete-orphan"
+    )
 
 
 class HomeworkCompletion(Base):

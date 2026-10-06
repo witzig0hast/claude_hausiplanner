@@ -196,6 +196,26 @@ Transkription geschickt, danach an Ollama zur Strukturierung (Fach/Titel/Deadlin
 - Ohne erreichbaren Whisper- oder Ollama-Dienst liefert `/voice/capture` einen sauberen `503`
   statt eines Absturzes.
 
+## Materialien (Dateianhänge)
+
+Jedes Klassenmitglied kann an eine Hausaufgabe Dateien anhängen (PDF, Word/Excel/PowerPoint,
+Bilder, Textdateien) - sichtbar für die ganze Klasse, auch über den öffentlichen Klassen-Link
+ohne Login (genauso wie die Hausaufgabe selbst).
+
+- **Button "Material"** auf jeder Hausaufgaben-Karte im Dashboard öffnet die Dateiauswahl.
+  Max. 20MB pro Datei (`HOMEWORK_MAX_ATTACHMENT_BYTES`, Standard 20MB). Nicht erlaubte Dateitypen
+  (z.B. ausführbare Dateien, Archive) werden mit `415` abgelehnt.
+- **Speicherort:** Dateien liegen auf der Festplatte unter `/app/uploads` im Container,
+  referenziert über die Datenbank - **nicht** in der Datenbank selbst. Im `docker-compose.yml`
+  liegt dafür ein eigenes Volume (`homework_uploads`) - ohne das wären alle hochgeladenen Dateien
+  nach jedem `docker compose up -d --build` weg.
+- **Löschen:** Nur der Hochladende selbst oder ein Admin kann eine Datei löschen. Wird die
+  Hausaufgabe selbst gelöscht, werden alle angehängten Dateien mitgelöscht.
+- **Falls hinter einem Reverse Proxy (z.B. Nginx Proxy Manager):** Dessen `client_max_body_size`
+  muss mindestens so groß sein wie `HOMEWORK_MAX_ATTACHMENT_BYTES` (Standard 20MB), sonst bricht
+  der Proxy den Upload schon ab, bevor er die App erreicht - meldet sich dann meist als generischer
+  502/413-Fehler im Browser, nicht als die App-eigene Fehlermeldung.
+
 ## E-Mail-Erinnerungen
 
 Zusätzlich zu den Push-Benachrichtigungen kann der Server bei bald fälligen, noch nicht

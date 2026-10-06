@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { Logo } from "../../../components/Logo";
-import { fetchPublicHomework } from "../../../lib/api";
+import { attachmentDownloadUrl, fetchPublicHomework } from "../../../lib/api";
+import { FileIcon } from "../../../components/icons";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function formatDue(due: string) {
   return new Date(due).toLocaleString("de-DE", {
@@ -44,6 +51,24 @@ export default async function PublicClassPage({ params }: { params: { classId: s
               Fällig {formatDue(hw.due_at)}
               {hw.completed_count > 0 && <span> · {hw.completed_count} erledigt</span>}
             </p>
+            {hw.attachments.length > 0 && (
+              <div className="stack" style={{ marginTop: 10, gap: 6 }}>
+                {hw.attachments.map((a) => (
+                  <a
+                    key={a.id}
+                    href={attachmentDownloadUrl(hw.id, a.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="row"
+                    style={{ gap: 6, alignItems: "center", textDecoration: "none", color: "var(--text)" }}
+                  >
+                    <FileIcon size={14} />
+                    <span style={{ fontSize: 14 }}>{a.filename}</span>
+                    <span className="faint">· {formatFileSize(a.size_bytes)}</span>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

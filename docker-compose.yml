@@ -42,6 +42,11 @@ services:
       # before any user connects their OwnAI account (the insecure built-in default is fine
       # until then, same as JWT_SECRET's own default).
       HOMEWORK_SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:-change-me-in-production}
+      HOMEWORK_MAX_ATTACHMENT_BYTES: ${MAX_ATTACHMENT_BYTES:-20971520}
+    volumes:
+      # Homework material uploads (PDFs, images, ...) - must be a persistent volume, or every
+      # uploaded file is lost the next time this container is recreated (e.g. `up -d --build`).
+      - homework_uploads:/app/uploads
     ports:
       - "8000:8000"
     extra_hosts:
@@ -60,3 +65,4 @@ services:
 
 volumes:
   postgres_data:
+  homework_uploads:
