@@ -23,6 +23,7 @@ import {
 import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
 import { SuggestionModal } from "../../components/SuggestionModal";
+import { AttachmentViewer, isViewable } from "../../components/AttachmentViewer";
 import {
   CalendarIcon,
   ClockIcon,
@@ -55,7 +56,10 @@ function formatDue(due: string) {
 function groupByDue(items: Homework[]) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+  // Rolling 24h window, not calendar midnight: something due tomorrow 06:00 has to be done
+  // today regardless (there's no "tomorrow morning" time left to do it in), so it belongs in
+  // "Heute" just as much as something due at 23:59 tonight does.
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const endOfWeek = new Date(startOfToday.getTime() + (7 - startOfToday.getDay() + 1) * 24 * 60 * 60 * 1000);
 
   const today: Homework[] = [];
@@ -64,7 +68,7 @@ function groupByDue(items: Homework[]) {
 
   for (const hw of items) {
     const due = new Date(hw.due_at);
-    if (due < endOfToday) today.push(hw);
+    if (due < in24h) today.push(hw);
     else if (due < endOfWeek) thisWeek.push(hw);
     else later.push(hw);
   }
@@ -95,6 +99,9 @@ function DashboardInner() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<{ hwId: string; attachmentId: string; filename: string; contentType: string } | null>(
+    null
+  );
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   useEffect(() => {
@@ -333,7 +340,13 @@ function DashboardInner() {
                         rel="noreferrer"
                         className="row"
                         style={{ gap: 6, alignItems: "center", textDecoration: "none", color: "var(--text)" }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isViewable(a.content_type)) {
+                            e.preventDefault();
+                            setViewing({ hwId: hw.id, attachmentId: a.id, filename: a.filename, contentType: a.content_type });
+                          }
+                        }}
                       >
                         <FileIcon size={14} />
                         <span style={{ fontSize: 14 }}>{a.filename}</span>
@@ -546,6 +559,15 @@ function DashboardInner() {
             showToast("Hausaufgabe gespeichert");
           }}
           onDismissed={() => setSuggestion(null)}
+        />
+      )}
+
+      {viewing && (
+        <AttachmentViewer
+          url={attachmentDownloadUrl(viewing.hwId, viewing.attachmentId)}
+          filename={viewing.filename}
+          contentType={viewing.contentType}
+          onClose={() => setViewing(null)}
         />
       )}
     </AppShell>

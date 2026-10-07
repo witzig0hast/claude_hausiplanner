@@ -306,10 +306,13 @@ def download_attachment(
     data = read_attachment(attachment.id)
     if data is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Datei nicht mehr auf dem Server vorhanden")
+    # Images/PDFs render in-browser (the web UI opens them in its own viewer) - everything else
+    # (Office docs, ...) still forces a download, since there's no sane way to view those inline.
+    disposition = "inline" if attachment.content_type.startswith("image/") or attachment.content_type == "application/pdf" else "attachment"
     return StreamingResponse(
         iter([data]),
         media_type=attachment.content_type,
-        headers={"Content-Disposition": f'attachment; filename="{attachment.filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{attachment.filename}"'},
     )
 
 
