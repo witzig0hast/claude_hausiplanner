@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -78,14 +77,20 @@ async def run_deadline_reminders() -> None:
 
 def start_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
+    # Pass the coroutine functions directly - AsyncIOScheduler detects iscoroutinefunction()
+    # and runs them straight on the running event loop. Wrapping them in
+    # `lambda: asyncio.create_task(...)` (as this used to do) makes APScheduler treat the job as
+    # a plain blocking callable instead, dispatching it to its default thread-pool executor -
+    # there's no running event loop in that thread, so asyncio.create_task() always raised
+    # "RuntimeError: no running event loop" and the job silently never ran.
     scheduler.add_job(
-        lambda: asyncio.create_task(run_daily_digest()),
+        run_daily_digest,
         CronTrigger(hour=settings.digest_hour_local, minute=0),
         id="daily_digest",
         replace_existing=True,
     )
     scheduler.add_job(
-        lambda: asyncio.create_task(run_deadline_reminders()),
+        run_deadline_reminders,
         IntervalTrigger(hours=1),
         id="deadline_reminders",
         replace_existing=True,
@@ -93,7 +98,7 @@ def start_scheduler() -> AsyncIOScheduler:
     # Always registered - which users (if any) have connected their own OwnAI account is a DB
     # query inside poll_agent_bus() itself, not a single global on/off switch.
     scheduler.add_job(
-        lambda: asyncio.create_task(poll_agent_bus()),
+        poll_agent_bus,
         IntervalTrigger(seconds=settings.ownai_agent_bus_poll_seconds),
         id="agent_bus_poll",
         replace_existing=True,
