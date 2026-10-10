@@ -28,6 +28,10 @@ import { AppShell } from "../../components/AppShell";
 import { BookIcon, CalendarIcon, ClockIcon, ShareIcon, UsersIcon } from "../../components/icons";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+// Select-Wert für "ausdrücklich frei, kein Unterricht" - unterscheidet sich von "" (Zelle noch
+// nie befüllt, zeigt "fehlt noch"), damit man einer leeren Stunde bestätigen kann, dass sie
+// wirklich frei ist, statt dass sie für immer rot als unbearbeitet markiert bleibt.
+const FREE_MARKER = "__FREE__";
 
 function timeOf(iso: string) {
   return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
@@ -192,26 +196,29 @@ export default function ClassPage() {
     );
   }
 
-  async function handleGridAssign(weekday: number, period: LessonPeriod, subjectId: string) {
+  // "" = komplett zurücksetzen (zurück zu "fehlt noch", Event wird gelöscht), FREE_MARKER =
+  // ausdrücklich als frei/kein Unterricht markiert (Event ohne Fach bleibt bestehen), sonst
+  // die subject_id der zugewiesenen Stunde.
+  async function handleGridAssign(weekday: number, period: LessonPeriod, selection: string) {
     if (!token) return;
     const existing = eventForSlot(weekday, period);
     try {
-      if (!subjectId) {
+      if (!selection) {
         if (existing) await deleteCalendarEvent(token, existing.id);
       } else {
-        const subject = subjects.find((s) => s.id === subjectId);
-        if (!subject) return;
+        const subject = selection === FREE_MARKER ? null : subjects.find((s) => s.id === selection);
+        if (selection !== FREE_MARKER && !subject) return;
         const refDate = "2026-01-05"; // a Monday - only weekday + time matter for recurring lessons
         const day = new Date(refDate);
         day.setDate(day.getDate() + weekday);
         const iso = day.toISOString().slice(0, 10);
         const payload = {
-          title: subject.name,
+          title: subject ? subject.name : "Frei",
           starts_at: `${iso}T${period.start_time}:00`,
           ends_at: `${iso}T${period.end_time}:00`,
           is_recurring_weekly: true,
           weekday,
-          subject_id: subject.id,
+          subject_id: subject ? subject.id : null,
         };
         if (existing) {
           await updateCalendarEvent(token, existing.id, payload);
@@ -496,10 +503,11 @@ export default function ClassPage() {
                             </td>
                             {WEEKDAYS.slice(0, 5).map((w, wi) => {
                               const existing = eventForSlot(wi, p);
+                              const selectValue = existing ? existing.subject_id || FREE_MARKER : "";
                               return (
                                 <td key={w} style={{ padding: "4px 6px" }}>
                                   <select
-                                    value={existing?.subject_id || ""}
+                                    value={selectValue}
                                     onChange={(e) => handleGridAssign(wi, p, e.target.value)}
                                     style={{
                                       marginBottom: 0,
@@ -508,7 +516,8 @@ export default function ClassPage() {
                                       borderColor: existing ? undefined : "#ef4444",
                                     }}
                                   >
-                                    <option value="">{existing ? "– frei –" : "fehlt noch"}</option>
+                                    <option value="">{existing ? "– zurücksetzen –" : "fehlt noch"}</option>
+                                    <option value={FREE_MARKER}>– frei (kein Unterricht) –</option>
                                     {subjects.map((s) => (
                                       <option key={s.id} value={s.id}>{s.name}</option>
                                     ))}

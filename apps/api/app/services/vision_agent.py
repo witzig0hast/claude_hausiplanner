@@ -32,7 +32,14 @@ typischerweise in dieser Reihenfolge:
 3. Raumnummer (eine Zahl oder Zahl+Buchstabe, z.B. "066", "224", "U02")
 Nimm für "subject_guess" NIEMALS den Lehrernamen (Zeile 1) oder die Raumnummer (Zeile 3) -
 sondern ausschließlich das Fach-Kürzel aus Zeile 2 dieser Zelle. Übernimm das Kürzel exakt so,
-wie es dort steht - erfinde oder wiederhole niemals ein Wort, das du nicht in dieser Zelle siehst."""
+wie es dort steht - erfinde oder wiederhole niemals ein Wort, das du nicht in dieser Zelle siehst.
+
+Ist eine Zelle wirklich leer (keine Lehrkraft, kein Fach-Kürzel, keine Raumnummer sichtbar), dann
+erfasse für diese Stunde GAR KEINEN Eintrag - lasse sie einfach weg. Schreibe niemals "frei",
+"Freistunde", "-", "--", "leer" oder Ähnliches als subject_guess; das ist kein Fach-Kürzel und ein
+Eintrag mit so einem Wert ist immer falsch. Prüfe bei jeder scheinbar leeren Zelle außerdem genau,
+ob dort nicht doch ein Fach-Kürzel steht, das nur schwer lesbar ist (z.B. blass, klein oder leicht
+verdeckt) - rate nicht, aber übersieh auch keine tatsächlich belegte Stunde."""
 
 # With a known period grid: the model only has to pick a weekday + period number per lesson -
 # never asked to read or invent a time itself, so it can no longer get the time wrong.
@@ -119,8 +126,25 @@ Bekannte Fächer dieser Klasse, falls hilfreich zur Zuordnung von Kürzeln (bevo
 """
 
 # Words the vision model sometimes echoes from the instructions themselves (a known llava
-# failure mode) instead of actually reading the image - never plausible subject names.
-_HALLUCINATION_MARKERS = {"nur", "ja", "nein", "kein", "keine", "unbekannt", "fach", "leer"}
+# failure mode) instead of actually reading the image - never plausible subject names. "frei"
+# and its variants belong here too: even though the prompt now tells the model to just omit
+# empty cells, a model that writes "frei" anyway for a cell it merely misread (not an actually
+# empty one) must not silently become a wrong "Frei" lesson - better to drop it and let the
+# admin fill that slot by hand than show a falsely "free" period that's actually got a class.
+_HALLUCINATION_MARKERS = {
+    "nur",
+    "ja",
+    "nein",
+    "kein",
+    "keine",
+    "unbekannt",
+    "fach",
+    "leer",
+    "frei",
+    "freistunde",
+    "-",
+    "--",
+}
 
 def _extract_json(text: str) -> dict:
     """Find the JSON object in the model's response, ignoring any explanatory text or
