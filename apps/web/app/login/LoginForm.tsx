@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "../../components/Logo";
+import { EmailReminderNotice } from "../../components/EmailReminderNotice";
 import { fetchSsoStatus, login, register, ssoLoginUrl } from "../../lib/api";
 
 const SSO_ERROR_MESSAGES: Record<string, string> = {
@@ -22,12 +23,14 @@ export default function LoginForm() {
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState(inviteFromLink ?? "");
   const [className, setClassName] = useState("");
-  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [error, setError] = useState<string | null>(
     ssoErrorCode ? SSO_ERROR_MESSAGES[ssoErrorCode] ?? `SSO-Anmeldung fehlgeschlagen (${ssoErrorCode}).` : null
   );
   const [busy, setBusy] = useState(false);
   const [ssoEnabled, setSsoEnabled] = useState(false);
+  // Only set right after a brand-new account was actually created - shows the email-reminder
+  // disclaimer/opt-out popup once, instead of asking before signup even succeeded.
+  const [newAccountToken, setNewAccountToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (inviteFromLink) {
@@ -48,17 +51,15 @@ export default function LoginForm() {
       const data =
         mode === "login"
           ? await login(email, password)
-          : await register(
-              email,
-              password,
-              displayName,
-              inviteCode || undefined,
-              className || undefined,
-              emailRemindersEnabled
-            );
+          : await register(email, password, displayName, inviteCode || undefined, className || undefined);
       localStorage.setItem("hausiplanner_token", data.access_token);
       localStorage.setItem("hausiplanner_user", JSON.stringify(data.user));
-      router.push("/dashboard");
+      if (mode === "register") {
+        setBusy(false);
+        setNewAccountToken(data.access_token);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       setError((err as Error).message || (mode === "login" ? "E-Mail oder Passwort falsch." : "Registrierung fehlgeschlagen."));
       setBusy(false);
@@ -119,33 +120,6 @@ export default function LoginForm() {
                 />
               </>
             )}
-
-            <div
-              style={{
-                background: "var(--card-bg, rgba(255,255,255,0.03))",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                padding: "10px 14px",
-                marginTop: 4,
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}
-            >
-              <p className="muted" style={{ margin: 0, marginBottom: 8 }}>
-                Du bekommst automatisch eine E-Mail, sobald eine deiner Hausaufgaben zeitlich knapp
-                wird. Falls du das nicht möchtest, kannst du es hier direkt abschalten (später
-                jederzeit in den Einstellungen änderbar).
-              </p>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={emailRemindersEnabled}
-                  onChange={(e) => setEmailRemindersEnabled(e.target.checked)}
-                  style={{ width: "auto", marginBottom: 0 }}
-                />
-                Per E-Mail erinnern, wenn eine Hausaufgabe bald fällig ist
-              </label>
-            </div>
           </>
         )}
 
@@ -177,6 +151,10 @@ export default function LoginForm() {
           </>
         )}
       </form>
+
+      {newAccountToken && (
+        <EmailReminderNotice token={newAccountToken} onDone={() => router.push("/dashboard")} />
+      )}
     </div>
   );
 }

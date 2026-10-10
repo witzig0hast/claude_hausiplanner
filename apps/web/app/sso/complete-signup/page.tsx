@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "../../../components/Logo";
+import { EmailReminderNotice } from "../../../components/EmailReminderNotice";
 import { completeSsoSignup } from "../../../lib/api";
 
 function CompleteSignupInner() {
@@ -13,9 +14,11 @@ function CompleteSignupInner() {
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [className, setClassName] = useState("");
-  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Only set right after the account was actually created - shows the email-reminder
+  // disclaimer/opt-out popup once, instead of asking before signup even succeeded.
+  const [newAccountToken, setNewAccountToken] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,11 +31,11 @@ function CompleteSignupInner() {
         display_name: displayName,
         invite_code: inviteCode || undefined,
         class_name: className || undefined,
-        email_reminders_enabled: emailRemindersEnabled,
       });
       localStorage.setItem("hausiplanner_token", data.access_token);
       localStorage.setItem("hausiplanner_user", JSON.stringify(data.user));
-      router.push("/dashboard");
+      setBusy(false);
+      setNewAccountToken(data.access_token);
     } catch (err) {
       setError((err as Error).message || "Registrierung fehlgeschlagen.");
       setBusy(false);
@@ -79,33 +82,6 @@ function CompleteSignupInner() {
           </>
         )}
 
-        <div
-          style={{
-            background: "var(--card-bg, rgba(255,255,255,0.03))",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "10px 14px",
-            marginTop: 4,
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >
-          <p className="muted" style={{ margin: 0, marginBottom: 8 }}>
-            Du bekommst automatisch eine E-Mail, sobald eine deiner Hausaufgaben zeitlich knapp
-            wird. Falls du das nicht möchtest, kannst du es hier direkt abschalten (später
-            jederzeit in den Einstellungen änderbar).
-          </p>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={emailRemindersEnabled}
-              onChange={(e) => setEmailRemindersEnabled(e.target.checked)}
-              style={{ width: "auto", marginBottom: 0 }}
-            />
-            Per E-Mail erinnern, wenn eine Hausaufgabe bald fällig ist
-          </label>
-        </div>
-
         {error && (
           <p style={{ color: "#f19999", background: "var(--red-bg)", border: "1px solid #4d2323", padding: "10px 14px", borderRadius: 6, fontSize: 13.5 }}>
             {error}
@@ -116,6 +92,10 @@ function CompleteSignupInner() {
           {busy ? "Wird verarbeitet..." : "Konto erstellen"}
         </button>
       </form>
+
+      {newAccountToken && (
+        <EmailReminderNotice token={newAccountToken} onDone={() => router.push("/dashboard")} />
+      )}
     </div>
   );
 }
