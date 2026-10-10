@@ -84,7 +84,9 @@ Aufgabe: {title}
 Fällig: {due}
 
 Schreibe NUR den E-Mail-Text selbst (keine Betreffzeile, keine Floskel wie "Sehr geehrte/r"),
-mit natürlicher Anrede beim Vornamen, auf Deutsch.
+mit natürlicher Anrede beim Vornamen, auf Deutsch. Es gibt KEINEN menschlichen Absender - schließe
+entweder ganz ohne Grußformel, oder unterschreibe als "Dein Hausaufgabenplaner". Erfinde NIEMALS
+einen Namen oder einen Platzhalter wie "[Dein Name]" für den Absender.
 """
 
 CHAT_PROMPT_TEMPLATE = """Du bist ein Lernassistent für Schüler. Tonfall: {tone}
@@ -178,6 +180,12 @@ async def generate_email_reminder(user: User, hw: Homework) -> str:
     )
     result = await _call_text_model(prompt)
     if result:
+        # The model sometimes signs off with an unfillable placeholder (e.g. "[Dein Name]")
+        # despite being told there's no human sender - strip that, and a "Mit freundlichen
+        # Grüßen,"-style closing line right before it, rather than ship a dangling placeholder.
+        result = re.sub(
+            r"\n+(?:[^\n]{0,60}(?:Grüß|Gruß)[^\n]*\n)?\s*\[[^\]\n]*\]\s*$", "", result.rstrip()
+        )
         return result
     return (
         f"Hallo {user.display_name},\n\n"
