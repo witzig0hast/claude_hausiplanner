@@ -77,12 +77,13 @@ export async function register(
   password: string,
   display_name: string,
   invite_code?: string,
-  class_name?: string
+  class_name?: string,
+  email_reminders_enabled = true
 ) {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, display_name, invite_code, class_name }),
+    body: JSON.stringify({ email, password, display_name, invite_code, class_name, email_reminders_enabled }),
   });
   if (!res.ok) throw new Error(await errorMessage(res, "Registrierung fehlgeschlagen"));
   return res.json();
@@ -113,6 +114,7 @@ export async function completeSsoSignup(payload: {
   display_name: string;
   invite_code?: string;
   class_name?: string;
+  email_reminders_enabled?: boolean;
 }) {
   const res = await fetch(`${API_BASE}/auth/sso/complete`, {
     method: "POST",

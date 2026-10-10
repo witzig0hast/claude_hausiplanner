@@ -9,6 +9,10 @@ class RegisterRequest(BaseModel):
     password: str
     invite_code: str | None = None
     class_name: str | None = None  # only used when invite_code is absent (new class)
+    # Shown to the user at signup as an opt-out checkbox next to the deadline-email disclaimer -
+    # defaults to on (matching the User model's own default) so anyone registering through a
+    # client that doesn't send this field yet keeps today's behavior.
+    email_reminders_enabled: bool = True
 
 
 class LoginRequest(BaseModel):
@@ -72,3 +76,4 @@ class SsoCompleteRequest(BaseModel):
     display_name: str
     invite_code: str | None = None
     class_name: str | None = None
+    email_reminders_enabled: bool = True

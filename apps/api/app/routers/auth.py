@@ -79,6 +79,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         password_hash=hash_password(payload.password),
         school_class_id=school_class.id,
         is_class_admin=is_admin,
+        email_reminders_enabled=payload.email_reminders_enabled,
     )
     db.add(user)
     db.commit()
@@ -339,6 +340,7 @@ def sso_complete(payload: SsoCompleteRequest, db: Session = Depends(get_db)):
         sso_subject=sub,
         school_class_id=school_class.id,
         is_class_admin=is_admin,
+        email_reminders_enabled=payload.email_reminders_enabled,
     )
     db.add(user)
     db.commit()
