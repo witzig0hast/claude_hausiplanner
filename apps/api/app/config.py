@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     uploads_dir: str = "/app/uploads"
     max_attachment_bytes: int = 20 * 1024 * 1024
 
+    # SSO login via any OpenID Connect provider (e.g. Authentik) - optional, the password
+    # login/register flow keeps working unchanged either way. oidc_issuer is the provider's base
+    # URL (its "/.well-known/openid-configuration" document is discovered from there), e.g.
+    # https://authentik.example.de/application/o/hausiplanner/. oidc_redirect_uri should match
+    # exactly what's registered as the client's redirect URI in the provider; left unset, it's
+    # derived from the incoming request's own base URL - fine behind a reverse proxy that sets
+    # X-Forwarded-* correctly, but safer to set explicitly if that's in doubt.
+    oidc_issuer: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_redirect_uri: str | None = None
+
     class Config:
         env_prefix = "HOMEWORK_"
         env_file = ".env"

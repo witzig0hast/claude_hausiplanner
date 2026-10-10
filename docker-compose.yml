@@ -43,6 +43,13 @@ services:
       # until then, same as JWT_SECRET's own default).
       HOMEWORK_SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:-change-me-in-production}
       HOMEWORK_MAX_ATTACHMENT_BYTES: ${MAX_ATTACHMENT_BYTES:-20971520}
+      # SSO login via any OpenID Connect provider (e.g. Authentik) - optional, password
+      # login/register keeps working either way. OIDC_ISSUER is the provider's base URL (its
+      # "/.well-known/openid-configuration" is discovered from there automatically).
+      HOMEWORK_OIDC_ISSUER: ${OIDC_ISSUER:-}
+      HOMEWORK_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      HOMEWORK_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      HOMEWORK_OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
     volumes:
       # Homework material uploads (PDFs, images, ...) - must be a persistent volume, or every
       # uploaded file is lost the next time this container is recreated (e.g. `up -d --build`).

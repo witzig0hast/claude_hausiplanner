@@ -3,20 +3,30 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "../../components/Logo";
-import { login, register } from "../../lib/api";
+import { fetchSsoStatus, login, register, ssoLoginUrl } from "../../lib/api";
+
+const SSO_ERROR_MESSAGES: Record<string, string> = {
+  missing_code: "SSO-Anmeldung abgebrochen oder unvollständig.",
+  invalid_state: "SSO-Anmeldung abgelaufen - bitte erneut versuchen.",
+  incomplete_profile: "Der SSO-Anbieter hat keine E-Mail-Adresse übermittelt.",
+};
 
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteFromLink = searchParams.get("invite");
+  const ssoErrorCode = searchParams.get("sso_error");
   const [mode, setMode] = useState<"login" | "register">(inviteFromLink ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [inviteCode, setInviteCode] = useState(inviteFromLink ?? "");
   const [className, setClassName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    ssoErrorCode ? SSO_ERROR_MESSAGES[ssoErrorCode] ?? `SSO-Anmeldung fehlgeschlagen (${ssoErrorCode}).` : null
+  );
   const [busy, setBusy] = useState(false);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
 
   useEffect(() => {
     if (inviteFromLink) {
@@ -24,6 +34,10 @@ export default function LoginForm() {
       setInviteCode(inviteFromLink);
     }
   }, [inviteFromLink]);
+
+  useEffect(() => {
+    fetchSsoStatus().then((s) => setSsoEnabled(s.enabled));
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,6 +123,24 @@ export default function LoginForm() {
         <button type="submit" style={{ width: "100%", marginTop: 4 }} disabled={busy}>
           {busy ? "Wird verarbeitet..." : mode === "login" ? "Einloggen" : "Konto erstellen"}
         </button>
+
+        {ssoEnabled && (
+          <>
+            <div className="row" style={{ alignItems: "center", gap: 10, margin: "16px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+              <span className="faint">oder</span>
+              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              style={{ width: "100%" }}
+              onClick={() => { window.location.href = ssoLoginUrl("/dashboard"); }}
+            >
+              Mit SSO anmelden
+            </button>
+          </>
+        )}
       </form>
     </div>
   );

@@ -36,6 +36,7 @@ export type User = {
   digest_enabled: boolean;
   deadline_push_enabled: boolean;
   priorities_enabled: boolean;
+  sso_connected: boolean;
 };
 
 function authHeaders(token: string | null): HeadersInit {
@@ -82,6 +83,37 @@ export async function register(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, display_name, invite_code, class_name }),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Registrierung fehlgeschlagen"));
+  return res.json();
+}
+
+export async function fetchSsoStatus(): Promise<{ enabled: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/sso/status`, { cache: "no-store" });
+  if (!res.ok) return { enabled: false }; // SSO just stays hidden if the check itself fails
+  return res.json();
+}
+
+export function ssoLoginUrl(next: string = "/dashboard"): string {
+  return `${API_BASE}/auth/sso/login?next=${encodeURIComponent(next)}`;
+}
+
+export async function fetchMe(token: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Konto nicht laden");
+  return res.json();
+}
+
+export async function completeSsoSignup(payload: {
+  pending_token: string;
+  display_name: string;
+  invite_code?: string;
+  class_name?: string;
+}) {
+  const res = await fetch(`${API_BASE}/auth/sso/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await errorMessage(res, "Registrierung fehlgeschlagen"));
   return res.json();

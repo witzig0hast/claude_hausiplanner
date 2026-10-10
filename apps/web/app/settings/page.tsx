@@ -156,7 +156,10 @@ export default function SettingsPage() {
 
   return (
     <AppShell user={user}>
-      <h1 style={{ marginBottom: 24 }}>Einstellungen</h1>
+      <h1 style={{ marginBottom: user.sso_connected ? 8 : 24 }}>Einstellungen</h1>
+      {user.sso_connected && (
+        <p className="faint" style={{ marginBottom: 24 }}>Dieses Konto ist mit SSO verknüpft.</p>
+      )}
 
       <div className="card">
         <div className="card-header">

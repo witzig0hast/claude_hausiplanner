@@ -34,6 +34,12 @@ class User(Base):
     ownai_agent_bus_base_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ownai_agent_bus_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # SSO (OpenID Connect) - the provider's "sub" claim, which identifies this account across
+    # logins independent of email changes. Null for accounts that have only ever used password
+    # login. A password_hash still always exists even for SSO-only accounts (a random, unusable
+    # value) - simpler than making the column nullable for one login method.
+    sso_subject: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -43,3 +49,7 @@ class User(Base):
 
     completions: Mapped[list["HomeworkCompletion"]] = relationship(back_populates="user")
     push_tokens: Mapped[list["PushToken"]] = relationship(back_populates="user")
+
+    @property
+    def sso_connected(self) -> bool:
+        return self.sso_subject is not None

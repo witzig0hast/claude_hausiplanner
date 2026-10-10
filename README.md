@@ -164,6 +164,36 @@ Die Platzhalter-Icons/Splash in `assets/` sind einfache generierte Grafiken - f�
   nicht erledigter Hausaufgabe genau eine ruhige Push-Nachricht (keine Eskalation, kein Alarm)
   sowie täglich einen von Ollama zusammengefassten Abend-Digest.
 
+## SSO-Login (OpenID Connect, z.B. Authentik)
+
+Optionaler Login über einen beliebigen OIDC-Provider - der bestehende E-Mail/Passwort-Login
+bleibt in jedem Fall erhalten, SSO kommt nur als zusätzlicher Button dazu, solange konfiguriert.
+
+- **Setup:** In Authentik (oder jedem anderen OIDC-Provider) eine neue OAuth2/OIDC-Anwendung
+  anlegen, Client-Typ "Confidential". Redirect-URI: `https://<deine-api-domain>/auth/sso/callback`
+  (muss exakt mit `OIDC_REDIRECT_URI` übereinstimmen, falls gesetzt - sonst wird sie aus der
+  eingehenden Anfrage abgeleitet). In die `.env`:
+  ```
+  OIDC_ISSUER=https://authentik.example.de/application/o/hausiplanner/
+  OIDC_CLIENT_ID=...
+  OIDC_CLIENT_SECRET=...
+  OIDC_REDIRECT_URI=https://<deine-api-domain>/auth/sso/callback   # optional
+  ```
+  Die Provider-Endpunkte (Authorization/Token/Userinfo) werden automatisch über
+  `{OIDC_ISSUER}/.well-known/openid-configuration` ermittelt - kein manuelles Eintragen einzelner
+  URLs nötig. Ohne `OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` bleibt SSO komplett
+  inaktiv und der "Mit SSO anmelden"-Button erscheint gar nicht erst (`GET /auth/sso/status`).
+- **Ablauf:** Erste Anmeldung über SSO mit einer E-Mail, die schon ein Passwort-Konto hat →
+  die Konten werden automatisch verknüpft (gleiche E-Mail = gleicher Mensch). Komplett neue
+  E-Mail → kurze Zwischenseite (`/sso/complete-signup`), die wie bei der normalen Registrierung
+  nach Einladungscode oder neuem Klassennamen fragt, dann ist der Account startklar. SSO-Konten
+  bekommen ein zufälliges, nie benutzbares Passwort hinterlegt (einfacher als die Spalte
+  nullable zu machen) - sie können sich ausschließlich über SSO einloggen.
+- **Sicherheit:** Der Code-Austausch und der Abruf der Nutzerinfo laufen beide direkt
+  Server-zu-Server über TLS gegen den Provider - es wird bewusst keine zusätzliche
+  JWT-Signaturprüfung des id_tokens vorgenommen (der direkte, authentifizierte TLS-Kanal ist
+  bereits der Vertrauensanker, Standard-Modell für einen "confidential client").
+
 ## Hausaufgaben einsprechen (Spracherkennung)
 
 Statt Formular ausfüllen: Mikrofon-Knopf im Dashboard drücken, Hausaufgabe diktieren ("Mathe,

@@ -71,6 +71,51 @@ def decode_superadmin_token(token: str) -> uuid.UUID | None:
         return None
 
 
+def create_sso_state_token(next_path: str) -> str:
+    """Self-contained CSRF/anti-replay state for the OIDC authorize request - avoids needing
+    server-side session storage for a single redirect round-trip."""
+    payload = {
+        "next": next_path,
+        "typ": "sso_state",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_sso_state_token(token: str) -> str | None:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        if payload.get("typ") != "sso_state":
+            return None
+        return payload.get("next", "")
+    except jwt.PyJWTError:
+        return None
+
+
+def create_sso_pending_token(subject: str, email: str, name: str) -> str:
+    """Identifies a brand-new SSO login that still needs an invite code/class before an account
+    can be created - handed to the web app, which collects that and posts it back to
+    POST /auth/sso/complete."""
+    payload = {
+        "oidc_sub": subject,
+        "email": email,
+        "name": name,
+        "typ": "sso_pending",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_sso_pending_token(token: str) -> dict | None:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        if payload.get("typ") != "sso_pending":
+            return None
+        return payload
+    except jwt.PyJWTError:
+        return None
+
+
 def verify_challenge_signature(public_key_pem: str, nonce_b64: str, signature_b64: str) -> bool:
     """Verifies an Ed25519 signature over a login nonce - the private key that
     produced it never leaves the user's machine."""
