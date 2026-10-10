@@ -11,6 +11,7 @@ from app.models.homework import Homework
 from app.models.push_token import SentReminder
 from app.models.user import User
 from app.services.agent_bus_poller import poll_agent_bus
+from app.services.attachment_storage import delete_attachment
 from app.services.email import EmailUnavailableError, is_configured as email_is_configured, send_email
 from app.services.ollama_agent import generate_email_reminder, generate_summary_for_user
 from app.services.push import send_gentle_reminder
@@ -75,6 +76,23 @@ async def run_deadline_reminders() -> None:
         db.close()
 
 
+async def run_cleanup_old_homework() -> None:
+    """Deletes homework items (and their attachment files) once they're old enough that
+    nobody needs them anymore - regardless of whether anyone ever marked them done."""
+    db = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=settings.homework_cleanup_days)
+        items = db.query(Homework).options(joinedload(Homework.attachments)).filter(Homework.due_at < cutoff).all()
+        for hw in items:
+            attachment_ids = [a.id for a in hw.attachments]
+            db.delete(hw)
+            db.commit()
+            for attachment_id in attachment_ids:
+                delete_attachment(attachment_id)
+    finally:
+        db.close()
+
+
 def start_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     # Pass the coroutine functions directly - AsyncIOScheduler detects iscoroutinefunction()
@@ -101,6 +119,12 @@ def start_scheduler() -> AsyncIOScheduler:
         poll_agent_bus,
         IntervalTrigger(seconds=settings.ownai_agent_bus_poll_seconds),
         id="agent_bus_poll",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        run_cleanup_old_homework,
+        CronTrigger(hour=3, minute=30),
+        id="cleanup_old_homework",
         replace_existing=True,
     )
     scheduler.start()

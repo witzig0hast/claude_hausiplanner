@@ -251,6 +251,23 @@ ohne Login (genauso wie die Hausaufgabe selbst).
   der Proxy den Upload schon ab, bevor er die App erreicht - meldet sich dann meist als generischer
   502/413-Fehler im Browser, nicht als die App-eigene Fehlermeldung.
 
+## Aufräumen alter Hausaufgaben
+
+Damit die Liste nicht mit altem Kram vollläuft, räumt sich die App selbst auf - ganz ohne
+manuelles Löschen:
+
+- **Automatisches Löschen:** Ein täglicher Hintergrundjob (03:30 Uhr Serverzeit) löscht
+  Hausaufgaben, deren Fälligkeitsdatum mehr als `HOMEWORK_CLEANUP_DAYS` Tage zurückliegt
+  (Standard: 3 Tage) - unabhängig davon, ob sie als erledigt markiert wurden oder nicht. Dabei
+  werden auch alle angehängten Dateien (siehe oben) von der Festplatte mitgelöscht. Das betrifft
+  die ganze Klasse, nicht nur einzelne Nutzer.
+- **Sofort ausblenden nach "erledigt":** Markiert man eine Hausaufgabe für sich selbst als
+  erledigt, verschwindet sie nach ca. 30 Sekunden aus der eigenen Dashboard-Liste - rein optisch,
+  nur im Browser dieser einen Sitzung. Das ist **keine** Löschung: Andere Klassenmitglieder sehen
+  die Hausaufgabe weiterhin ganz normal, bis sie sie selbst erledigen oder der Cleanup-Job sie
+  nach `HOMEWORK_CLEANUP_DAYS` Tagen löscht. Macht man die Markierung innerhalb der 30 Sekunden
+  wieder rückgängig, bleibt die Karte sichtbar.
+
 ## E-Mail-Erinnerungen
 
 Zusätzlich zu den Push-Benachrichtigungen kann der Server bei bald fälligen, noch nicht

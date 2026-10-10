@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     oidc_client_secret: str | None = None
     oidc_redirect_uri: str | None = None
 
+    # Old homework items (and their attachments) are deleted automatically this many days past
+    # their due date, regardless of completion status - keeps the list from accumulating
+    # semester-old clutter without anyone having to clean up by hand.
+    homework_cleanup_days: int = 3
+
     class Config:
         env_prefix = "HOMEWORK_"
         env_file = ".env"

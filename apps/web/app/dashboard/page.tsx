@@ -103,6 +103,18 @@ function DashboardInner() {
     null
   );
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  // Marking something done doesn't delete it (classmates still need to see it) - this just
+  // hides it from *this* user's own list a little after, so the list doesn't stay cluttered
+  // with yesterday's "erledigt" items but nothing is lost if they uncheck it in time.
+  const hideTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      hideTimersRef.current.forEach((timer) => clearTimeout(timer));
+      hideTimersRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -174,11 +186,43 @@ function DashboardInner() {
     if (!token) return;
     const nextDone = !hw.completed_by_me;
     setItems((prev) => prev.map((i) => (i.id === hw.id ? { ...i, completed_by_me: nextDone } : i)));
+
+    const existingTimer = hideTimersRef.current.get(hw.id);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      hideTimersRef.current.delete(hw.id);
+    }
+    if (nextDone) {
+      const timer = setTimeout(() => {
+        setHiddenIds((prev) => new Set(prev).add(hw.id));
+        hideTimersRef.current.delete(hw.id);
+      }, 30_000);
+      hideTimersRef.current.set(hw.id, timer);
+    } else {
+      setHiddenIds((prev) => {
+        if (!prev.has(hw.id)) return prev;
+        const next = new Set(prev);
+        next.delete(hw.id);
+        return next;
+      });
+    }
+
     try {
       await toggleComplete(token, hw.id, nextDone);
       showToast(nextDone ? "Als erledigt markiert" : "Als offen markiert");
     } catch {
+      const timer = hideTimersRef.current.get(hw.id);
+      if (timer) {
+        clearTimeout(timer);
+        hideTimersRef.current.delete(hw.id);
+      }
       setItems((prev) => prev.map((i) => (i.id === hw.id ? { ...i, completed_by_me: !nextDone } : i)));
+      setHiddenIds((prev) => {
+        if (!prev.has(hw.id)) return prev;
+        const next = new Set(prev);
+        next.delete(hw.id);
+        return next;
+      });
       showToast("Status konnte nicht geändert werden", "error");
     }
   }
@@ -265,13 +309,14 @@ function DashboardInner() {
 
   const isAdmin = user.is_class_admin;
   const prioritiesEnabled = user.priorities_enabled;
-  const openCount = items.filter((i) => !i.completed_by_me).length;
-  const { today: dueTodayAll } = groupByDue(items.filter((i) => !i.completed_by_me));
+  const visibleItems = items.filter((i) => !hiddenIds.has(i.id));
+  const openCount = visibleItems.filter((i) => !i.completed_by_me).length;
+  const { today: dueTodayAll } = groupByDue(visibleItems.filter((i) => !i.completed_by_me));
   const dueTodayCount = dueTodayAll.length;
   const completedCount = items.length - openCount;
   const completionRate = items.length > 0 ? Math.round((completedCount / items.length) * 100) : null;
 
-  const filtered = items
+  const filtered = visibleItems
     .filter((hw) => !filterSubject || hw.subject.id === filterSubject)
     .filter(
       (hw) =>
