@@ -189,6 +189,11 @@ bleibt in jedem Fall erhalten, SSO kommt nur als zusätzlicher Button dazu, sola
   nach Einladungscode oder neuem Klassennamen fragt, dann ist der Account startklar. SSO-Konten
   bekommen ein zufälliges, nie benutzbares Passwort hinterlegt (einfacher als die Spalte
   nullable zu machen) - sie können sich ausschließlich über SSO einloggen.
+- **Bestehendes Konto manuell verknüpfen:** Falls die E-Mail im SSO-Provider von der im
+  Hausiplaner-Konto abweicht, greift der automatische E-Mail-Abgleich nicht. Dafür gibt es in
+  den Einstellungen → "SSO" den Button "Mit SSO verknüpfen" - verknüpft gezielt das gerade
+  eingeloggte Konto mit der SSO-Identität (`GET /auth/sso/link?token=...`), unabhängig von der
+  E-Mail-Adresse.
 - **Sicherheit:** Der Code-Austausch und der Abruf der Nutzerinfo laufen beide direkt
   Server-zu-Server über TLS gegen den Provider - es wird bewusst keine zusätzliche
   JWT-Signaturprüfung des id_tokens vorgenommen (der direkte, authentifizierte TLS-Kanal ist

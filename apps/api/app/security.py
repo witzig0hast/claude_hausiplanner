@@ -71,23 +71,27 @@ def decode_superadmin_token(token: str) -> uuid.UUID | None:
         return None
 
 
-def create_sso_state_token(next_path: str) -> str:
+def create_sso_state_token(next_path: str, link_user_id: str | None = None) -> str:
     """Self-contained CSRF/anti-replay state for the OIDC authorize request - avoids needing
-    server-side session storage for a single redirect round-trip."""
+    server-side session storage for a single redirect round-trip. link_user_id, when set, means
+    this round-trip isn't a login - it's an already-logged-in user explicitly attaching their
+    SSO identity to their existing (password) account from Settings."""
     payload = {
         "next": next_path,
         "typ": "sso_state",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
     }
+    if link_user_id:
+        payload["link_user_id"] = link_user_id
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def decode_sso_state_token(token: str) -> str | None:
+def decode_sso_state_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         if payload.get("typ") != "sso_state":
             return None
-        return payload.get("next", "")
+        return payload
     except jwt.PyJWTError:
         return None
 

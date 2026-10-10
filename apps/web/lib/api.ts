@@ -98,6 +98,10 @@ export function ssoLoginUrl(next: string = "/dashboard"): string {
   return `${API_BASE}/auth/sso/login?next=${encodeURIComponent(next)}`;
 }
 
+export function ssoLinkUrl(token: string): string {
+  return `${API_BASE}/auth/sso/link?token=${encodeURIComponent(token)}`;
+}
+
 export async function fetchMe(token: string): Promise<User> {
   const res = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders(token), cache: "no-store" });
   if (!res.ok) throw new Error("Konnte Konto nicht laden");

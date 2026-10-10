@@ -281,3 +281,12 @@ export function DownloadIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function KeyIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="8" cy="15" r="4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M11 12l9-9M16 5l2.5 2.5M19 2l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

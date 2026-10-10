@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -28,6 +29,7 @@ from app.security import (
     create_access_token,
     create_sso_pending_token,
     create_sso_state_token,
+    decode_access_token,
     decode_sso_pending_token,
     decode_sso_state_token,
     hash_password,
@@ -213,6 +215,26 @@ async def sso_login(request: Request, next: str = "/dashboard"):
     return RedirectResponse(url)
 
 
+@router.get("/sso/link")
+async def sso_link(request: Request, token: str):
+    """Lets an already-logged-in user (password account) explicitly attach their SSO identity
+    from Settings, rather than relying on the login flow's automatic email match - needed
+    whenever the Authentik account's email differs from the one registered here. `token` is the
+    user's normal access token, passed as a query param since this is a top-level browser
+    navigation (no Authorization header possible) straight to the provider."""
+    if not oidc.is_configured():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "SSO ist auf diesem Server nicht konfiguriert")
+    user_id = decode_access_token(token)
+    if user_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Ungültiges oder abgelaufenes Token")
+    state = create_sso_state_token("/settings", link_user_id=str(user_id))
+    try:
+        url = await oidc.build_authorize_url(_redirect_uri(request), state)
+    except oidc.OidcError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    return RedirectResponse(url)
+
+
 @router.get("/sso/callback")
 async def sso_callback(
     request: Request,
@@ -224,28 +246,45 @@ async def sso_callback(
     """Always redirects back into the web app - this is a top-level browser navigation from the
     provider, not an API call the frontend can read a JSON error from."""
 
-    def fail(reason: str) -> RedirectResponse:
-        return RedirectResponse(f"{settings.web_base_url}/login?sso_error={quote(reason)}")
+    def fail(reason: str, target: str = "/login") -> RedirectResponse:
+        return RedirectResponse(f"{settings.web_base_url}{target}?sso_error={quote(reason)}")
 
     if error:
         return fail(error)
     if not code or not state:
         return fail("missing_code")
-    next_path = decode_sso_state_token(state)
-    if next_path is None:
+    state_data = decode_sso_state_token(state)
+    if state_data is None:
         return fail("invalid_state")
+    next_path = state_data.get("next", "/dashboard")
+    link_user_id = state_data.get("link_user_id")
+    error_target = "/settings" if link_user_id else "/login"
 
     try:
         tokens = await oidc.exchange_code(code, _redirect_uri(request))
         userinfo = await oidc.fetch_userinfo(tokens["access_token"])
     except oidc.OidcError as exc:
-        return fail(str(exc))
+        return fail(str(exc), error_target)
 
     sub = userinfo.get("sub")
     email = userinfo.get("email")
     name = userinfo.get("name") or userinfo.get("preferred_username") or email
     if not sub or not email:
-        return fail("incomplete_profile")
+        return fail("incomplete_profile", error_target)
+
+    if link_user_id:
+        # Explicit "attach SSO to my already-logged-in account" flow, started from Settings -
+        # never auto-provisions or matches by email, only ever touches the one account that
+        # asked for this.
+        link_user = db.get(User, uuid.UUID(link_user_id))
+        if link_user is None:
+            return fail("invalid_account", "/settings")
+        conflict = db.query(User).filter(User.sso_subject == sub, User.id != link_user.id).first()
+        if conflict is not None:
+            return fail("sso_account_already_linked", "/settings")
+        link_user.sso_subject = sub
+        db.commit()
+        return RedirectResponse(f"{settings.web_base_url}/settings?sso_linked=1")
 
     user = db.query(User).filter(User.sso_subject == sub).first()
     if user is None:

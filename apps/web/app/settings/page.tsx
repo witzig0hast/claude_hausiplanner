@@ -9,16 +9,25 @@ import {
   disconnectAgentBus,
   fetchAgentBusLog,
   fetchAgentBusStatus,
+  fetchMe,
+  fetchSsoStatus,
   sendTestEmail,
   setAgentBusEnabled,
   setAgentTone,
   setEmailReminders,
   setNotificationPrefs,
   setPrioritiesEnabled,
+  ssoLinkUrl,
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { CheckIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
+import { CheckIcon, KeyIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
+
+const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
+  sso_account_already_linked: "Diese SSO-Identität ist bereits mit einem anderen Konto verknüpft.",
+  invalid_account: "Anmeldung abgelaufen - bitte neu einloggen und erneut versuchen.",
+  incomplete_profile: "Der SSO-Anbieter hat keine E-Mail-Adresse übermittelt.",
+};
 import { Accent, ACCENTS, applyAccent, applyTheme, getStoredAccent, getStoredTheme, Theme } from "../../lib/theme";
 
 export default function SettingsPage() {
@@ -36,6 +45,9 @@ export default function SettingsPage() {
   const [busBaseUrl, setBusBaseUrl] = useState("");
   const [busError, setBusError] = useState<string | null>(null);
   const [busBusy, setBusBusy] = useState(false);
+
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+  const [ssoMessage, setSsoMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -55,6 +67,25 @@ export default function SettingsPage() {
         if (status.connected) fetchAgentBusLog(t).then(setBusLog).catch(() => {});
       })
       .catch(() => {});
+    fetchSsoStatus().then((s) => setSsoEnabled(s.enabled));
+
+    // Back from the SSO link round-trip - read it from the URL once, then strip it so a reload
+    // doesn't re-show the message, and refresh the cached user (sso_connected may have changed).
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get("sso_linked");
+    const ssoError = params.get("sso_error");
+    if (linked || ssoError) {
+      if (linked) {
+        setSsoMessage({ type: "success", text: "Konto erfolgreich mit SSO verknüpft." });
+        fetchMe(t).then((updated) => {
+          setUser(updated);
+          localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+        });
+      } else if (ssoError) {
+        setSsoMessage({ type: "error", text: SSO_LINK_ERROR_MESSAGES[ssoError] ?? `SSO-Verknüpfung fehlgeschlagen (${ssoError}).` });
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [router]);
 
   async function handleSetTone(tone: "locker" | "streng") {
@@ -156,9 +187,41 @@ export default function SettingsPage() {
 
   return (
     <AppShell user={user}>
-      <h1 style={{ marginBottom: user.sso_connected ? 8 : 24 }}>Einstellungen</h1>
-      {user.sso_connected && (
-        <p className="faint" style={{ marginBottom: 24 }}>Dieses Konto ist mit SSO verknüpft.</p>
+      <h1 style={{ marginBottom: 24 }}>Einstellungen</h1>
+
+      {ssoEnabled && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-header-icon"><KeyIcon size={16} /></span>
+            <div>
+              <div className="card-header-title">SSO</div>
+              <div className="card-header-sub">
+                {user.sso_connected
+                  ? "Dieses Konto ist mit deinem SSO-Konto verknüpft - Login auch darüber möglich."
+                  : "Verknüpfe dieses Konto mit SSO, um dich künftig auch darüber einzuloggen."}
+              </div>
+            </div>
+          </div>
+          {ssoMessage && (
+            <p
+              style={{
+                color: ssoMessage.type === "error" ? "#f19999" : "var(--accent-bright)",
+                background: ssoMessage.type === "error" ? "var(--red-bg)" : undefined,
+                border: ssoMessage.type === "error" ? "1px solid #4d2323" : undefined,
+                padding: ssoMessage.type === "error" ? "10px 14px" : undefined,
+                borderRadius: 6,
+                fontSize: 13.5,
+              }}
+            >
+              {ssoMessage.text}
+            </p>
+          )}
+          {!user.sso_connected && token && (
+            <button type="button" onClick={() => { window.location.href = ssoLinkUrl(token); }}>
+              Mit SSO verknüpfen
+            </button>
+          )}
+        </div>
       )}
 
       <div className="card">
