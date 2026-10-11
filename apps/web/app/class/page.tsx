@@ -22,7 +22,9 @@ import {
   deleteCalendarEvent,
   fetchCalendarEvents,
   fetchInvite,
+  fetchMyClass,
   fetchMySubjects,
+  SchoolClass,
   updateCalendarEvent,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
@@ -57,6 +59,7 @@ export default function ClassPage() {
   const [newPeriodStart, setNewPeriodStart] = useState("08:00");
   const [newPeriodEnd, setNewPeriodEnd] = useState("08:45");
   const [members, setMembers] = useState<Member[]>([]);
+  const [schoolClass, setSchoolClass] = useState<SchoolClass | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -100,18 +103,20 @@ export default function ClassPage() {
   async function refresh() {
     if (!token) return;
     try {
-      const [inv, subj, evs, per, mem] = await Promise.all([
+      const [inv, subj, evs, per, mem, cls] = await Promise.all([
         fetchInvite(token),
         fetchMySubjects(token),
         fetchCalendarEvents(token),
         fetchLessonPeriods(token),
         fetchMembers(token),
+        fetchMyClass(token),
       ]);
       setInvite(inv);
       setSubjects(subj);
       setEvents(evs);
       setPeriods(per);
       setMembers(mem);
+      setSchoolClass(cls);
     } catch {
       setError("Konnte Daten nicht laden.");
     }
@@ -414,6 +419,7 @@ export default function ClassPage() {
 
       {isAdmin ? (
         <>
+          {schoolClass?.organization_mode !== "courses" && (
           <div className="card">
             <div className="card-header">
               <span className="card-header-icon"><CalendarIcon size={16} /></span>
@@ -664,13 +670,16 @@ export default function ClassPage() {
                 </div>
               </div>
             )}
+          </div>
+          )}
 
-            <hr className="divider" />
+          <div className="card">
             <p className="field-label" style={{ marginBottom: 6 }}>Termin eintragen</p>
             <p className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
               Für alles, was nur einmal stattfindet: Prüfungen/Klausuren, Ausflüge, Elternabende,
-              Vertretungsstunden. Normale, wöchentliche Unterrichtsstunden trägst du oben im
-              Stundenplan ein.
+              Vertretungsstunden.
+              {schoolClass?.organization_mode !== "courses" &&
+                " Normale, wöchentliche Unterrichtsstunden trägst du oben im Stundenplan ein."}
             </p>
             <form onSubmit={handleAddEvent}>
               <label className="field-label">Art</label>

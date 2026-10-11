@@ -6,10 +6,12 @@ import {
   attachmentDownloadUrl,
   CalendarEvent,
   captureVoiceNote,
+  Course,
   createHomeworkWithRepeat,
   deleteAttachment,
   deleteHomework,
   fetchCalendarEvents,
+  fetchCourses,
   fetchMyHomework,
   fetchMySubjects,
   fetchPendingSuggestion,
@@ -85,6 +87,8 @@ function DashboardInner() {
   const [items, setItems] = useState<Homework[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [exams, setExams] = useState<CalendarEvent[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [courseId, setCourseId] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -176,13 +180,15 @@ function DashboardInner() {
   async function refresh() {
     if (!token) return;
     try {
-      const [hw, subj, events] = await Promise.all([
+      const [hw, subj, events, crs] = await Promise.all([
         fetchMyHomework(token),
         fetchMySubjects(token),
         fetchCalendarEvents(token).catch(() => []),
+        fetchCourses(token).catch(() => []),
       ]);
       setItems(hw);
       setSubjects(subj);
+      setCourses(crs);
       const now = Date.now();
       setExams(
         events
@@ -304,12 +310,14 @@ function DashboardInner() {
         subject_id: subjectId,
         repeat_weeks: repeatWeeks || undefined,
         priority: priority || undefined,
+        course_id: courseId || null,
       });
       setTitle("");
       setDescription("");
       setDueAt("");
       setRepeatWeeks(0);
       setPriority("");
+      setCourseId("");
       setShowForm(false);
       refresh();
       showToast("Hausaufgabe gespeichert");
@@ -361,6 +369,7 @@ function DashboardInner() {
             <span className="subject-tag" style={{ marginBottom: 0 }}>
               {hw.subject.name}
             </span>
+            {hw.course_name && <span className="pill neutral">{hw.course_name}</span>}
             {dueBadge(hw)}
             {prioritiesEnabled && hw.priority === "hoch" && <span className="pill red">Hoch</span>}
             {prioritiesEnabled && hw.priority === "niedrig" && <span className="pill neutral">Niedrig</span>}
@@ -476,6 +485,17 @@ function DashboardInner() {
 
   return (
     <AppShell user={user}>
+      {courses.length > 0 && !courses.some((c) => c.is_member) && (
+        <div className="card" style={{ marginBottom: 20, borderColor: "var(--accent)" }}>
+          <strong>Wähle deine Kurse</strong>{" "}
+          <span className="muted">
+            Eure Klasse nutzt Kurse (z.B. Religion, Mathe LK/GK) - wähle in den{" "}
+            <a href="/settings">Einstellungen</a> aus, in welchen du bist, damit du die richtigen
+            Hausaufgaben siehst.
+          </span>
+        </div>
+      )}
+
       <div className="top-bar">
         <div>
           <h1>{user.display_name}</h1>
@@ -605,6 +625,18 @@ function DashboardInner() {
                 <option value="niedrig">Niedrig</option>
                 <option value="normal">Normal</option>
                 <option value="hoch">Hoch</option>
+              </select>
+            </>
+          )}
+
+          {courses.some((c) => c.is_member) && (
+            <>
+              <label className="field-label">Für</label>
+              <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+                <option value="">Ganze Klasse</option>
+                {courses.filter((c) => c.is_member).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
               </select>
             </>
           )}

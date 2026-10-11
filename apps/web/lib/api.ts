@@ -20,9 +20,27 @@ export type Homework = {
   estimated_minutes: number | null;
   priority: Priority | null;
   subject: Subject;
+  course_id: string | null;
+  course_name: string | null;
   completed_by_me: boolean;
   completed_count: number;
   attachments: HomeworkAttachment[];
+};
+
+export type Course = {
+  id: string;
+  name: string;
+  subject_id: string | null;
+  member_count: number;
+  is_member: boolean;
+};
+
+export type SchoolClass = {
+  id: string;
+  name: string;
+  invite_code: string;
+  organization_mode: "timetable" | "courses";
+  created_at: string;
 };
 
 export type User = {
@@ -216,6 +234,54 @@ export async function deleteSubject(token: string, subjectId: string) {
   if (!res.ok) throw new Error("Konnte Fach nicht löschen");
 }
 
+export async function fetchMyClass(token: string): Promise<SchoolClass> {
+  const res = await fetch(`${API_BASE}/classes/me`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Klasse nicht laden");
+  return res.json();
+}
+
+export async function setOrganizationMode(token: string, organization_mode: "timetable" | "courses"): Promise<SchoolClass> {
+  const res = await fetch(`${API_BASE}/classes/me/organization-mode`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ organization_mode }),
+  });
+  if (!res.ok) throw new Error("Konnte Modus nicht ändern (nur Admin)");
+  return res.json();
+}
+
+export async function fetchCourses(token: string): Promise<Course[]> {
+  const res = await fetch(`${API_BASE}/courses`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Kurse nicht laden");
+  return res.json();
+}
+
+export async function createCourse(token: string, payload: { name: string; subject_id?: string | null }): Promise<Course> {
+  const res = await fetch(`${API_BASE}/courses`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Konnte Kurs nicht erstellen (nur Admin)");
+  return res.json();
+}
+
+export async function deleteCourse(token: string, courseId: string) {
+  const res = await fetch(`${API_BASE}/courses/${courseId}`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Kurs nicht löschen");
+}
+
+export async function joinCourse(token: string, courseId: string): Promise<Course> {
+  const res = await fetch(`${API_BASE}/courses/${courseId}/join`, { method: "POST", headers: authHeaders(token) });
+  if (!res.ok) throw new Error(await errorMessage(res, "Konnte Kurs nicht beitreten"));
+  return res.json();
+}
+
+export async function leaveCourse(token: string, courseId: string) {
+  const res = await fetch(`${API_BASE}/courses/${courseId}/leave`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Konnte Kurs nicht verlassen");
+}
+
 export type LessonPeriod = { id: string; number: number; start_time: string; end_time: string };
 
 export async function fetchLessonPeriods(token: string): Promise<LessonPeriod[]> {
@@ -264,6 +330,7 @@ export type CalendarEvent = {
   weekday: number | null;
   subject_id: string | null;
   event_type: CalendarEventType;
+  course_id: string | null;
 };
 
 export async function fetchCalendarEvents(token: string): Promise<CalendarEvent[]> {
@@ -282,6 +349,7 @@ export async function createCalendarEvent(
     weekday: number | null;
     subject_id?: string | null;
     event_type?: CalendarEventType;
+    course_id?: string | null;
   }
 ) {
   const res = await fetch(`${API_BASE}/calendar`, {
@@ -304,6 +372,7 @@ export async function updateCalendarEvent(
     weekday: number | null;
     subject_id?: string | null;
     event_type?: CalendarEventType;
+    course_id?: string | null;
   }
 ) {
   const res = await fetch(`${API_BASE}/calendar/${eventId}`, {
@@ -594,6 +663,7 @@ export async function createHomeworkWithRepeat(
     estimated_minutes?: number;
     repeat_weeks?: number;
     priority?: Priority;
+    course_id?: string | null;
   }
 ) {
   const res = await fetch(`${API_BASE}/homework`, {

@@ -328,6 +328,31 @@ manuellen Export.
   Link sofort (z.B. falls er versehentlich geteilt wurde) - muss danach in jeder Kalender-App neu
   eingetragen werden.
 
+## Kurse (Oberstufe / Religion-Varianten / AGs)
+
+Standardmäßig teilen sich alle Klassenmitglieder einen gemeinsamen Stundenplan und sehen alle
+Hausaufgaben. Für Klassen, bei denen das nicht passt (z.B. Oberstufe mit Leistungs-/Grundkursen,
+oder parallele Religion/Ethik-Gruppen), gibt es **Kurse**: benannte Gruppen, denen Mitglieder sich
+selbst zuordnen.
+
+- **Admin → "Organisation":** Kurse anlegen (Name + optional ein zugeordnetes Fach, fürs
+  Nachhalten in der Statistik). Daneben lässt sich die Klasse auf "Kurssystem" umstellen - dann
+  verschwindet die Stundenplan-Pflege (kein gemeinsamer Plan mehr nötig), einmalige Termine
+  (Prüfungen etc.) bleiben weiterhin verfügbar. Das Umschalten löscht nichts, auch nicht zurück.
+- **Einstellungen → "Meine Kurse":** Jedes Mitglied wählt selbst, in welchen Kursen es ist - pro
+  Fach höchstens ein Kurs (z.B. nicht gleichzeitig Mathe LK und GK), fachlose Kurse (AGs) beliebig
+  viele. Bestehende Nutzer sehen im Dashboard einen Hinweis-Banner, solange sie noch keinen
+  gewählt haben.
+- **Hausaufgaben für einen Kurs:** Beim Anlegen einer Hausaufgabe erscheint ein "Für"-Feld, sobald
+  man selbst in mindestens einem Kurs ist - "Ganze Klasse" (Standard, wie bisher) oder einer der
+  eigenen Kurse. Kurs-Hausaufgaben sehen nur die Mitglieder dieses Kurses (auch im Kalender-Abo
+  und ICS-Export); jedes Kursmitglied darf dort eintragen, nicht nur Admins.
+- **Was (noch) fehlt:** Mehrere Kurse parallel auf denselben Stundenplan-Slot zu legen (z.B.
+  Religion kath./evang./Ethik alle in der 6. Stunde Dienstag, mit automatischer Zuordnung je nach
+  gewähltem Kurs) ist im Datenmodell vorbereitet (`CalendarEvent.course_id`), aber noch ohne
+  eigene Admin-UI - aktuell müssen solche Varianten über die Kurse selbst (ohne Stundenplan-Slot)
+  abgebildet werden.
+
 ## OwnAI Agent Bus
 
 Optionale Peer-to-Peer-Anbindung an [OwnAI](https://github.com/witzig0hast/ownai), den

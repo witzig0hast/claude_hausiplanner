@@ -7,12 +7,16 @@ import {
   AgentBusStatus,
   calendarFeedUrl,
   connectAgentBus,
+  Course,
   disconnectAgentBus,
   fetchAgentBusLog,
   fetchAgentBusStatus,
   fetchCalendarFeedToken,
+  fetchCourses,
   fetchMe,
   fetchSsoStatus,
+  joinCourse,
+  leaveCourse,
   regenerateCalendarFeedToken,
   sendTestEmail,
   setAgentBusEnabled,
@@ -21,10 +25,12 @@ import {
   setNotificationPrefs,
   setPrioritiesEnabled,
   ssoLinkUrl,
+  Subject,
+  fetchMySubjects,
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { CalendarIcon, CheckIcon, KeyIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
+import { BookIcon, CalendarIcon, CheckIcon, KeyIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
 
 const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
   sso_account_already_linked: "Diese SSO-Identität ist bereits mit einem anderen Konto verknüpft.",
@@ -56,6 +62,11 @@ export default function SettingsPage() {
   const [feedCopied, setFeedCopied] = useState(false);
   const [feedBusy, setFeedBusy] = useState(false);
 
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [courseError, setCourseError] = useState<string | null>(null);
+  const [courseBusyId, setCourseBusyId] = useState<string | null>(null);
+
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
     const u = localStorage.getItem("hausiplanner_user");
@@ -67,6 +78,8 @@ export default function SettingsPage() {
     setUser(JSON.parse(u));
     setTheme(getStoredTheme());
     setAccent(getStoredAccent());
+    fetchCourses(t).then(setCourses).catch(() => {});
+    fetchMySubjects(t).then(setSubjects).catch(() => {});
     fetchAgentBusStatus(t)
       .then((status) => {
         setBusStatus(status);
@@ -120,6 +133,36 @@ export default function SettingsPage() {
       // ignore
     } finally {
       setFeedBusy(false);
+    }
+  }
+
+  async function handleJoinCourse(courseId: string) {
+    if (!token) return;
+    setCourseError(null);
+    setCourseBusyId(courseId);
+    try {
+      const updated = await joinCourse(token, courseId);
+      setCourses((prev) => prev.map((c) => (c.id === courseId ? updated : c)));
+    } catch (err) {
+      setCourseError((err as Error).message);
+    } finally {
+      setCourseBusyId(null);
+    }
+  }
+
+  async function handleLeaveCourse(courseId: string) {
+    if (!token) return;
+    setCourseError(null);
+    setCourseBusyId(courseId);
+    try {
+      await leaveCourse(token, courseId);
+      setCourses((prev) =>
+        prev.map((c) => (c.id === courseId ? { ...c, is_member: false, member_count: Math.max(0, c.member_count - 1) } : c))
+      );
+    } catch (err) {
+      setCourseError((err as Error).message);
+    } finally {
+      setCourseBusyId(null);
     }
   }
 
@@ -399,6 +442,53 @@ export default function SettingsPage() {
           </button>
         )}
       </div>
+
+      {courses.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-header-icon"><BookIcon size={16} /></span>
+            <div>
+              <div className="card-header-title">Meine Kurse</div>
+              <div className="card-header-sub">
+                Pro Fach höchstens ein Kurs - Hausaufgaben für einen Kurs siehst du nur, wenn du
+                drin bist
+              </div>
+            </div>
+          </div>
+          {courseError && (
+            <p style={{ color: "var(--red)", background: "var(--red-bg)", padding: "8px 12px", borderRadius: 6, fontSize: 13.5, marginBottom: 12 }}>
+              {courseError}
+            </p>
+          )}
+          <div className="stack">
+            {courses.map((c) => (
+              <div key={c.id} className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                <span>
+                  {c.name}{" "}
+                  <span className="faint">
+                    {c.subject_id && `· ${subjects.find((s) => s.id === c.subject_id)?.name ?? ""} `}
+                    · {c.member_count} Mitglied{c.member_count === 1 ? "" : "er"}
+                  </span>
+                </span>
+                {c.is_member ? (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => handleLeaveCourse(c.id)}
+                    disabled={courseBusyId === c.id}
+                  >
+                    {courseBusyId === c.id ? "..." : "Verlassen"}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => handleJoinCourse(c.id)} disabled={courseBusyId === c.id}>
+                    {courseBusyId === c.id ? "..." : "Beitreten"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">
