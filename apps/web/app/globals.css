@@ -453,7 +453,7 @@ main {
   cursor: pointer;
   text-align: left;
 }
-.card-header-toggle:hover { transform: none; }
+.card-header-toggle:hover, .card-header-toggle:active { background: transparent; border-color: transparent; transform: none; }
 .chevron { color: var(--muted); display: flex; transition: transform 0.15s var(--ease); flex-shrink: 0; }
 .chevron.open { transform: rotate(180deg); }
 
