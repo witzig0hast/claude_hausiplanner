@@ -6,17 +6,26 @@ import {
   CalendarEvent,
   CalendarEventType,
   ClassInvite,
+  Course,
+  createCourse,
   createLessonPeriod,
+  createSubject,
   demoteMember,
+  deleteCourse,
   deleteLessonPeriod,
+  deleteSubject,
   downloadIcsExport,
   extractTimetableFromImage,
+  fetchClassStats,
+  fetchCourses,
   fetchLessonPeriods,
   fetchMembers,
   LessonPeriod,
   Member,
   promoteMember,
+  setOrganizationMode,
   Subject,
+  SubjectStat,
   User,
   createCalendarEvent,
   deleteCalendarEvent,
@@ -28,7 +37,9 @@ import {
   updateCalendarEvent,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { BookIcon, CalendarIcon, ClockIcon, ShareIcon, UsersIcon } from "../../components/icons";
+import { BookIcon, CalendarIcon, ClockIcon, ShareIcon, TrendIcon, UsersIcon } from "../../components/icons";
+
+type Tab = "fächer" | "stundenplan" | "termine";
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 // Select-Wert für "ausdrücklich frei, kein Unterricht" - unterscheidet sich von "" (Zelle noch
@@ -62,6 +73,14 @@ export default function ClassPage() {
   const [schoolClass, setSchoolClass] = useState<SchoolClass | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("fächer");
+
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [stats, setStats] = useState<SubjectStat[]>([]);
+  const [subjectName, setSubjectName] = useState("");
+  const [courseName, setCourseName] = useState("");
+  const [courseSubjectId, setCourseSubjectId] = useState("");
+  const [modeBusy, setModeBusy] = useState(false);
 
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -103,13 +122,14 @@ export default function ClassPage() {
   async function refresh() {
     if (!token) return;
     try {
-      const [inv, subj, evs, per, mem, cls] = await Promise.all([
+      const [inv, subj, evs, per, mem, cls, crs] = await Promise.all([
         fetchInvite(token),
         fetchMySubjects(token),
         fetchCalendarEvents(token),
         fetchLessonPeriods(token),
         fetchMembers(token),
         fetchMyClass(token),
+        fetchCourses(token),
       ]);
       setInvite(inv);
       setSubjects(subj);
@@ -117,9 +137,65 @@ export default function ClassPage() {
       setPeriods(per);
       setMembers(mem);
       setSchoolClass(cls);
+      setCourses(crs);
+      if (user?.is_class_admin) {
+        fetchClassStats(token).then(setStats).catch(() => {});
+      }
     } catch {
       setError("Konnte Daten nicht laden.");
     }
+  }
+
+  async function handleSetMode(mode: "timetable" | "courses") {
+    if (!token || modeBusy) return;
+    setModeBusy(true);
+    try {
+      const updated = await setOrganizationMode(token, mode);
+      setSchoolClass(updated);
+      if (mode === "courses" && tab === "stundenplan") setTab("fächer");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setModeBusy(false);
+    }
+  }
+
+  async function handleAddCourse(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !courseName) return;
+    try {
+      await createCourse(token, { name: courseName, subject_id: courseSubjectId || null });
+      setCourseName("");
+      setCourseSubjectId("");
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDeleteCourse(id: string) {
+    if (!token) return;
+    if (!confirm("Kurs wirklich löschen? Alle Mitgliedschaften gehen verloren.")) return;
+    await deleteCourse(token, id);
+    refresh();
+  }
+
+  async function handleAddSubject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !subjectName) return;
+    try {
+      await createSubject(token, { name: subjectName });
+      setSubjectName("");
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDeleteSubject(id: string) {
+    if (!token) return;
+    await deleteSubject(token, id);
+    refresh();
   }
 
   async function handlePromote(id: string) {
@@ -419,7 +495,150 @@ export default function ClassPage() {
 
       {isAdmin ? (
         <>
-          {schoolClass?.organization_mode !== "courses" && (
+          <div className="toggle-group" style={{ marginBottom: 20 }}>
+            <button type="button" className={tab === "fächer" ? "active" : ""} onClick={() => setTab("fächer")}>
+              Fächer &amp; Kurse
+            </button>
+            {schoolClass?.organization_mode !== "courses" && (
+              <button type="button" className={tab === "stundenplan" ? "active" : ""} onClick={() => setTab("stundenplan")}>
+                Stundenplan
+              </button>
+            )}
+            <button type="button" className={tab === "termine" ? "active" : ""} onClick={() => setTab("termine")}>
+              Termine
+            </button>
+          </div>
+
+          {tab === "fächer" && (
+            <>
+              <div className="card">
+                <div className="card-header">
+                  <span className="card-header-icon"><UsersIcon size={16} /></span>
+                  <div>
+                    <div className="card-header-title">Organisation</div>
+                    <div className="card-header-sub">
+                      Stundenplan: ein gemeinsamer Wochenplan für alle. Kurssystem: kein fester
+                      Plan, Mitglieder wählen sich stattdessen in einzelne Kurse ein (z.B.
+                      Oberstufe).
+                    </div>
+                  </div>
+                </div>
+                <div className="toggle-group" style={{ marginBottom: 20 }}>
+                  <button
+                    type="button"
+                    className={schoolClass?.organization_mode === "timetable" ? "active" : ""}
+                    onClick={() => handleSetMode("timetable")}
+                    disabled={modeBusy}
+                  >
+                    Stundenplan
+                  </button>
+                  <button
+                    type="button"
+                    className={schoolClass?.organization_mode === "courses" ? "active" : ""}
+                    onClick={() => handleSetMode("courses")}
+                    disabled={modeBusy}
+                  >
+                    Kurssystem
+                  </button>
+                </div>
+
+                <p className="field-label" style={{ marginBottom: 6 }}>Kurse</p>
+                <p className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
+                  Z.B. "Religion katholisch"/"Religion evangelisch"/"Ethik" nebeneinander, oder im
+                  Kurssystem "Mathe LK"/"Mathe GK". Mitglieder wählen in den Einstellungen selbst
+                  einen Kurs pro Fach (bei fachlosen Kursen beliebig viele); Hausaufgaben für
+                  einen Kurs sehen nur dessen Mitglieder.
+                </p>
+                <form onSubmit={handleAddCourse} className="row" style={{ marginBottom: 16 }}>
+                  <input
+                    placeholder="Neuer Kurs, z.B. Mathe LK"
+                    value={courseName}
+                    onChange={(e) => setCourseName(e.target.value)}
+                    style={{ marginBottom: 0 }}
+                  />
+                  <select
+                    value={courseSubjectId}
+                    onChange={(e) => setCourseSubjectId(e.target.value)}
+                    style={{ marginBottom: 0, flexShrink: 0, width: 160 }}
+                  >
+                    <option value="">Kein Fach</option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <button type="submit" style={{ flexShrink: 0 }}>Hinzufügen</button>
+                </form>
+                {courses.length === 0 && <p className="muted">Noch keine Kurse angelegt.</p>}
+                <div className="stack">
+                  {courses.map((c) => (
+                    <div key={c.id} className="row" style={{ justifyContent: "space-between" }}>
+                      <span>
+                        {c.name}{" "}
+                        <span className="faint">
+                          · {c.member_count} Mitglied{c.member_count === 1 ? "" : "er"}
+                          {c.subject_id && ` · ${subjects.find((s) => s.id === c.subject_id)?.name ?? ""}`}
+                        </span>
+                      </span>
+                      <button className="ghost" onClick={() => handleDeleteCourse(c.id)}>Löschen</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-header">
+                  <span className="card-header-icon"><TrendIcon size={16} /></span>
+                  <div>
+                    <div className="card-header-title">Statistik nach Fach</div>
+                    <div className="card-header-sub">Erledigungsquote über die ganze Klasse</div>
+                  </div>
+                </div>
+                {stats.length === 0 && <p className="muted">Noch keine Hausaufgaben erfasst.</p>}
+                <div className="stack">
+                  {stats.map((s) => (
+                    <div key={s.subject_id}>
+                      <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+                        <span className="subject-tag" style={{ marginBottom: 0 }}>{s.subject_name}</span>
+                        <span className="faint">
+                          {s.homework_count} Aufgabe{s.homework_count === 1 ? "" : "n"} · {Math.round(s.avg_completion_rate * 100)}% erledigt
+                        </span>
+                      </div>
+                      <div style={{ height: 6, background: "var(--surface-alt)", borderRadius: 4, overflow: "hidden" }}>
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${Math.round(s.avg_completion_rate * 100)}%`,
+                            background: "var(--accent)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-header">
+                  <span className="card-header-icon"><BookIcon size={16} /></span>
+                  <div className="card-header-title">Fächer verwalten</div>
+                </div>
+                <form onSubmit={handleAddSubject} className="row" style={{ marginBottom: 16 }}>
+                  <input placeholder="Neues Fach" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} style={{ marginBottom: 0 }} />
+                  <button type="submit" style={{ flexShrink: 0 }}>Hinzufügen</button>
+                </form>
+                <div className="stack">
+                  {subjects.map((s) => (
+                    <div key={s.id} className="row" style={{ justifyContent: "space-between" }}>
+                      <span className="subject-tag" style={{ marginBottom: 0 }}>{s.name}</span>
+                      <button className="ghost" onClick={() => handleDeleteSubject(s.id)}>Löschen</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {tab === "stundenplan" && schoolClass?.organization_mode !== "courses" && (
           <div className="card">
             <div className="card-header">
               <span className="card-header-icon"><CalendarIcon size={16} /></span>
@@ -673,13 +892,15 @@ export default function ClassPage() {
           </div>
           )}
 
+          {tab === "termine" && (
+          <>
           <div className="card">
             <p className="field-label" style={{ marginBottom: 6 }}>Termin eintragen</p>
             <p className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
               Für alles, was nur einmal stattfindet: Prüfungen/Klausuren, Ausflüge, Elternabende,
               Vertretungsstunden.
               {schoolClass?.organization_mode !== "courses" &&
-                " Normale, wöchentliche Unterrichtsstunden trägst du oben im Stundenplan ein."}
+                " Normale, wöchentliche Unterrichtsstunden trägst du im Stundenplan-Tab ein."}
             </p>
             <form onSubmit={handleAddEvent}>
               <label className="field-label">Art</label>
@@ -726,6 +947,8 @@ export default function ClassPage() {
               ))}
             </div>
           </div>
+          </>
+          )}
         </>
       ) : (
         <p className="muted">Stundenplan und Rollen werden vom Klassen-Admin gepflegt.</p>

@@ -163,6 +163,18 @@ def set_display_name(
     return user
 
 
+@router.put("/me/seen-product-intro", response_model=UserOut)
+def mark_product_intro_seen(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Dismisses the one-time "was ist neu" popup for this account permanently."""
+    user.seen_product_intro = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.put("/me/tone", response_model=UserOut)
 def set_agent_tone(
     payload: SetAgentToneRequest,

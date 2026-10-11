@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CheckIcon, HomeIcon, LogoutIcon, MenuIcon, PencilIcon, SettingsIcon, ShieldIcon, UsersIcon, XIcon } from "./icons";
+import { CheckIcon, HomeIcon, LogoutIcon, MenuIcon, PencilIcon, SettingsIcon, UsersIcon, XIcon } from "./icons";
 import { Logo } from "./Logo";
 import { initTheme } from "../lib/theme";
 import { setDisplayName } from "../lib/api";
@@ -55,10 +55,12 @@ export function AppShell({
 
   const nav = [
     { href: "/dashboard", label: "Hausaufgaben", sub: "Deine Aufgaben & Prüfungen", icon: HomeIcon },
-    { href: "/class", label: "Klasse", sub: "Mitglieder, Stundenplan, Teilen", icon: UsersIcon },
-    ...(user?.is_class_admin
-      ? [{ href: "/admin", label: "Admin", sub: "Fächer & Klassen-Einstellungen", icon: ShieldIcon }]
-      : []),
+    {
+      href: "/class",
+      label: "Klasse",
+      sub: user?.is_class_admin ? "Mitglieder, Fächer, Kurse, Stundenplan, Teilen" : "Mitglieder, Stundenplan, Teilen",
+      icon: UsersIcon,
+    },
     { href: "/settings", label: "Einstellungen", sub: "Konto, Benachrichtigungen, Kalender", icon: SettingsIcon },
   ];
 

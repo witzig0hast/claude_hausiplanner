@@ -55,6 +55,7 @@ export type User = {
   deadline_push_enabled: boolean;
   priorities_enabled: boolean;
   sso_connected: boolean;
+  seen_product_intro: boolean;
 };
 
 function authHeaders(token: string | null): HeadersInit {
@@ -500,6 +501,15 @@ export async function setDisplayName(token: string, display_name: string): Promi
     body: JSON.stringify({ display_name }),
   });
   if (!res.ok) throw new Error(await errorMessage(res, "Konnte Namen nicht ändern"));
+  return res.json();
+}
+
+export async function markProductIntroSeen(token: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/seen-product-intro`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Konnte Hinweis nicht bestätigen");
   return res.json();
 }
 

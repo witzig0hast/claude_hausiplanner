@@ -49,6 +49,12 @@ class User(Base):
     # and relies entirely on this being long and random.
     calendar_feed_token: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
 
+    # Shows the one-time "was ist neu" popup (new design, Kurse, Prüfungen, Kalender-Abo) once
+    # after this feature shipped, then never again. True by default so brand-new accounts never
+    # see it (they only ever know the current UI) - the migration backfills existing accounts to
+    # False so each of them sees it exactly once.
+    seen_product_intro: Mapped[bool] = mapped_column(Boolean, default=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID | None] = mapped_column(

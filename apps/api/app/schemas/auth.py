@@ -35,6 +35,7 @@ class UserOut(BaseModel):
     deadline_push_enabled: bool
     priorities_enabled: bool
     sso_connected: bool
+    seen_product_intro: bool
 
     class Config:
         from_attributes = True

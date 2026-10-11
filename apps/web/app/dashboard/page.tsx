@@ -28,6 +28,7 @@ import { AppShell } from "../../components/AppShell";
 import { ToastProvider, useToast } from "../../components/Toast";
 import { SuggestionModal } from "../../components/SuggestionModal";
 import { AttachmentViewer, isViewable } from "../../components/AttachmentViewer";
+import { ProductIntroNotice } from "../../components/ProductIntroNotice";
 import {
   CalendarIcon,
   ClockIcon,
@@ -703,6 +704,17 @@ function DashboardInner() {
           filename={viewing.filename}
           contentType={viewing.contentType}
           onClose={() => setViewing(null)}
+        />
+      )}
+
+      {token && user && !user.seen_product_intro && (
+        <ProductIntroNotice
+          token={token}
+          onDismissed={() => {
+            const updated = { ...user, seen_product_intro: true };
+            setUser(updated);
+            localStorage.setItem("hausiplanner_user", JSON.stringify(updated));
+          }}
         />
       )}
     </AppShell>
