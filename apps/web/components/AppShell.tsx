@@ -2,9 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { HomeIcon, LogoutIcon, MenuIcon, SettingsIcon, ShieldIcon, UsersIcon, XIcon } from "./icons";
+import { CheckIcon, HomeIcon, LogoutIcon, MenuIcon, PencilIcon, SettingsIcon, ShieldIcon, UsersIcon, XIcon } from "./icons";
 import { Logo } from "./Logo";
 import { initTheme } from "../lib/theme";
+import { setDisplayName } from "../lib/api";
 
 export function AppShell({
   user,
@@ -16,10 +17,41 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(user?.display_name ?? "");
+  const [nameBusy, setNameBusy] = useState(false);
+  const [displayName, setDisplayNameState] = useState(user?.display_name ?? "");
+
+  useEffect(() => {
+    setDisplayNameState(user?.display_name ?? "");
+  }, [user?.display_name]);
 
   useEffect(() => {
     initTheme();
   }, []);
+
+  async function saveName() {
+    const token = localStorage.getItem("hausiplanner_token");
+    const trimmed = nameDraft.trim();
+    if (!token || !trimmed || trimmed === displayName) {
+      setEditingName(false);
+      return;
+    }
+    setNameBusy(true);
+    try {
+      const updated = await setDisplayName(token, trimmed);
+      setDisplayNameState(updated.display_name);
+      const stored = localStorage.getItem("hausiplanner_user");
+      if (stored) {
+        localStorage.setItem("hausiplanner_user", JSON.stringify({ ...JSON.parse(stored), display_name: updated.display_name }));
+      }
+      setEditingName(false);
+    } catch {
+      // keep the field open with the user's draft so they can retry instead of silently reverting
+    } finally {
+      setNameBusy(false);
+    }
+  }
 
   const nav = [
     { href: "/dashboard", label: "Hausaufgaben", icon: HomeIcon },
@@ -40,9 +72,14 @@ export function AppShell({
         <Logo href="/dashboard" />
         <div className="app-header-right">
           {user && (
-            <span className="avatar" title={user.display_name}>
-              {user.display_name.charAt(0).toUpperCase()}
-            </span>
+            <button
+              type="button"
+              className="avatar avatar-button"
+              title={`${displayName} - Profil öffnen`}
+              onClick={() => setOpen(true)}
+            >
+              {displayName.charAt(0).toUpperCase()}
+            </button>
           )}
           <button
             type="button"
@@ -56,14 +93,56 @@ export function AppShell({
       </header>
 
       {open && (
-        <div className="nav-drawer-overlay" onClick={() => setOpen(false)}>
+        <div
+          className="nav-drawer-overlay"
+          onClick={() => {
+            setOpen(false);
+            setEditingName(false);
+          }}
+        >
           <nav className="nav-drawer" onClick={(e) => e.stopPropagation()}>
             {user && (
               <div className="nav-drawer-user">
-                <span className="avatar" title={user.display_name}>
-                  {user.display_name.charAt(0).toUpperCase()}
-                </span>
-                <span className="nav-drawer-user-name">{user.display_name}</span>
+                <span className="avatar">{displayName.charAt(0).toUpperCase()}</span>
+                {editingName ? (
+                  <div className="row" style={{ gap: 6, flex: 1 }}>
+                    <input
+                      autoFocus
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveName()}
+                      style={{ marginBottom: 0, fontSize: 14, padding: "6px 8px" }}
+                      disabled={nameBusy}
+                    />
+                    <button
+                      type="button"
+                      className="ghost"
+                      style={{ padding: "6px 8px", boxShadow: "none" }}
+                      onClick={saveName}
+                      disabled={nameBusy}
+                      aria-label="Namen speichern"
+                    >
+                      <CheckIcon size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="nav-drawer-user-name" style={{ flex: 1 }}>{displayName}</span>
+                    <button
+                      type="button"
+                      className="ghost"
+                      style={{ padding: "6px 8px", boxShadow: "none" }}
+                      onClick={() => {
+                        setNameDraft(displayName);
+                        setEditingName(true);
+                      }}
+                      aria-label="Namen bearbeiten"
+                      title="Namen bearbeiten"
+                    >
+                      <PencilIcon size={14} />
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

@@ -254,10 +254,10 @@ export default function SettingsPage() {
         <div className="card-header">
           <span className="card-header-icon"><MailIcon size={16} /></span>
           <div>
-            <div className="card-header-title">E-Mail-Erinnerungen</div>
+            <div className="card-header-title">Vorschlags-E-Mail</div>
             <div className="card-header-sub">
               Zusätzlich zur Push-Nachricht per E-Mail erinnern, wenn eine Hausaufgabe bald
-              fällig und noch nicht erledigt ist
+              fällig und noch nicht erledigt ist. Standardmäßig aus.
             </div>
           </div>
         </div>

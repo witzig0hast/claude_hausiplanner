@@ -324,32 +324,40 @@ function DashboardInner() {
         hw.title.toLowerCase().includes(search.toLowerCase()) ||
         hw.description?.toLowerCase().includes(search.toLowerCase())
     );
-  const { today, thisWeek, later } = groupByDue(filtered);
+  // Offene Hausaufgaben oben nach Fälligkeit gruppiert, erledigte komplett separat ganz unten
+  // (eingeklappt) - vorher waren beide innerhalb jeder Zeitgruppe durcheinander gemischt.
+  const openFiltered = filtered.filter((hw) => !hw.completed_by_me);
+  const completedFiltered = filtered
+    .filter((hw) => hw.completed_by_me)
+    .sort((a, b) => new Date(b.due_at).getTime() - new Date(a.due_at).getTime());
+  const { today, thisWeek, later } = groupByDue(openFiltered);
 
-  function renderGroup(label: string, group: Homework[]) {
-    if (group.length === 0) return null;
+  function dueBadge(hw: Homework) {
+    if (hw.completed_by_me) return null;
+    const diffMs = new Date(hw.due_at).getTime() - Date.now();
+    if (diffMs < 0) return <span className="pill red">Überfällig</span>;
+    if (diffMs < 24 * 60 * 60 * 1000) return <span className="pill yellow">Heute fällig</span>;
+    return null;
+  }
+
+  function renderCard(hw: Homework) {
     return (
-      <>
-        <p className="group-heading">
-          {label} <span className="count">· {group.length}</span>
-        </p>
-        <div className="stack">
-          {group.map((hw) => (
-            <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
-              <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
-                <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                  <span className="subject-tag" style={{ marginBottom: 0 }}>
-                    <span className="subject-dot" style={{ background: hw.subject.color }} />
-                    {hw.subject.name}
-                  </span>
-                  {prioritiesEnabled && hw.priority === "hoch" && (
-                    <span className="pill" style={{ background: "#d9707022", color: "#d97070" }}>Hoch</span>
-                  )}
-                  {prioritiesEnabled && hw.priority === "niedrig" && (
-                    <span className="pill" style={{ background: "var(--surface)", color: "var(--muted)" }}>Niedrig</span>
-                  )}
-                </div>
-                {isAdmin && (
+      <div key={hw.id} className={`card interactive ${hw.completed_by_me ? "done" : ""}`}>
+        <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+          <div className="row" style={{ gap: 8, alignItems: "center" }}>
+            <span className="subject-tag" style={{ marginBottom: 0 }}>
+              <span className="subject-dot" style={{ background: hw.subject.color }} />
+              {hw.subject.name}
+            </span>
+            {dueBadge(hw)}
+            {prioritiesEnabled && hw.priority === "hoch" && (
+              <span className="pill" style={{ background: "#d9707022", color: "#d97070" }}>Hoch</span>
+            )}
+            {prioritiesEnabled && hw.priority === "niedrig" && (
+              <span className="pill" style={{ background: "var(--surface)", color: "var(--muted)" }}>Niedrig</span>
+            )}
+          </div>
+          {isAdmin && (
                   <div className="row" style={{ gap: 4 }}>
                     <button
                       className="ghost"
@@ -442,9 +450,18 @@ function DashboardInner() {
                   {hw.completed_by_me ? "Als offen markieren" : "Als erledigt markieren"}
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
+      </div>
+    );
+  }
+
+  function renderGroup(label: string, group: Homework[]) {
+    if (group.length === 0) return null;
+    return (
+      <>
+        <p className="group-heading">
+          {label} <span className="count">· {group.length}</span>
+        </p>
+        <div className="stack">{group.map((hw) => renderCard(hw))}</div>
       </>
     );
   }
@@ -592,6 +609,17 @@ function DashboardInner() {
       {renderGroup("Heute", today)}
       {renderGroup("Diese Woche", thisWeek)}
       {renderGroup("Später", later)}
+
+      {completedFiltered.length > 0 && (
+        <details className="completed-section">
+          <summary className="group-heading" style={{ cursor: "pointer" }}>
+            Erledigt <span className="count">· {completedFiltered.length}</span>
+          </summary>
+          <div className="stack" style={{ marginTop: 10 }}>
+            {completedFiltered.map((hw) => renderCard(hw))}
+          </div>
+        </details>
+      )}
 
       {suggestion && token && (
         <SuggestionModal

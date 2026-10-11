@@ -268,7 +268,7 @@ manuelles Löschen:
   nach `HOMEWORK_CLEANUP_DAYS` Tagen löscht. Macht man die Markierung innerhalb der 30 Sekunden
   wieder rückgängig, bleibt die Karte sichtbar.
 
-## E-Mail-Erinnerungen
+## Vorschlags-E-Mail (optionale E-Mail-Erinnerung)
 
 Zusätzlich zu den Push-Benachrichtigungen kann der Server bei bald fälligen, noch nicht
 erledigten Hausaufgaben eine KI-personalisierte Erinnerungs-E-Mail verschicken (vom selben
@@ -291,10 +291,10 @@ Scheduler-Job, der auch die Push-Erinnerung auslöst).
     Start - äußert sich dann meist als `554 ... Access denied` beim Versand, weil ohne
     `SMTP_USERNAME`/`SMTP_USER` kein Login versucht wird und der Server die Mail als
     anonymen Relay-Versuch ablehnt.
-- **Pro Nutzer ein-/ausschaltbar:** Jeder Nutzer kann E-Mail-Erinnerungen unter
-  Einstellungen → Tonfall-Bereich separat aktivieren/deaktivieren (`PUT /auth/me/email-reminders`,
-  Standard: an). Die globale SMTP-Konfiguration betrifft also nur, *ob überhaupt* Mails
-  verschickt werden können - die Checkbox entscheidet, *wer* sie bekommt.
+- **Pro Nutzer ein-/ausschaltbar, standardmäßig aus:** Jeder Nutzer kann die Vorschlags-E-Mail
+  unter Einstellungen separat aktivieren (`PUT /auth/me/email-reminders`, Standard: **aus** - ein
+  reines Opt-in, nicht automatisch für alle an). Die globale SMTP-Konfiguration betrifft also nur,
+  *ob überhaupt* Mails verschickt werden können - die Checkbox entscheidet, *wer* sie bekommt.
 - Der Mailtext wird vom selben Ollama-Modell wie Zusammenfassung/Chat erzeugt, im Tonfall
   (`locker`/`streng`) des jeweiligen Nutzers, und bezieht sich ausschließlich auf die konkrete
   fällige Aufgabe. Ist Ollama nicht erreichbar, wird ein einfacher Standardtext verschickt statt

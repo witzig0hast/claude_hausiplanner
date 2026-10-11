@@ -17,6 +17,7 @@ from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
     SetAgentToneRequest,
+    SetDisplayNameRequest,
     SetEmailRemindersRequest,
     SetNotificationPrefsRequest,
     SetPrioritiesEnabledRequest,
@@ -116,6 +117,23 @@ def join_class(
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
+    return user
+
+
+@router.put("/me/display-name", response_model=UserOut)
+def set_display_name(
+    payload: SetDisplayNameRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    name = payload.display_name.strip()
+    if not name:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "display_name darf nicht leer sein")
+    if len(name) > 120:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "display_name ist zu lang")
+    user.display_name = name
+    db.commit()
+    db.refresh(user)
     return user
 
 

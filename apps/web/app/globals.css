@@ -436,6 +436,19 @@ main {
   margin-bottom: 16px;
 }
 
+.card-header-toggle {
+  width: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.card-header-toggle:hover { transform: none; }
+.chevron { color: var(--muted); display: flex; transition: transform 0.15s var(--ease); flex-shrink: 0; }
+.chevron.open { transform: rotate(180deg); }
+
 .card-header-icon {
   width: 30px;
   height: 30px;
@@ -489,6 +502,18 @@ main {
   margin: 28px 0 12px;
 }
 .group-heading:first-child { margin-top: 0; }
+
+.completed-section summary.group-heading {
+  list-style: none;
+  user-select: none;
+}
+.completed-section summary.group-heading::-webkit-details-marker { display: none; }
+.completed-section summary.group-heading::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform 0.12s var(--ease);
+}
+.completed-section[open] summary.group-heading::before { transform: rotate(90deg); }
 .group-heading .count {
   color: var(--faint);
   font-weight: 600;
@@ -555,6 +580,17 @@ a:hover { color: var(--accent-bright); }
   font-weight: 700;
   color: var(--accent-bright);
   flex-shrink: 0;
+}
+
+.avatar-button {
+  cursor: pointer;
+  padding: 0;
+  box-shadow: none;
+  transition: transform 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+.avatar-button:hover {
+  border-color: var(--accent);
+  transform: translateY(0) scale(1.06);
 }
 
 /* ---------- Cards ---------- */

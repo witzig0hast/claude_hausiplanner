@@ -4,17 +4,18 @@ import { useState } from "react";
 import { setEmailReminders } from "../lib/api";
 
 /** Shown once right after a new account was actually created (not before, while the form could
- * still fail) - confirms the auto-enabled deadline-email reminders and lets the user turn them
- * off immediately, without having to find the setting in Settings afterwards. */
+ * still fail) - offers the opt-in "Vorschlags-E-Mail" reminder, off by default like for every
+ * other account, with a one-click way to turn it on right here instead of hunting for it in
+ * Settings afterwards. */
 export function EmailReminderNotice({ token, onDone }: { token: string; onDone: () => void }) {
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function handleContinue() {
     setBusy(true);
     try {
-      if (!enabled) {
-        await setEmailReminders(token, false);
+      if (enabled) {
+        await setEmailReminders(token, true);
       }
     } catch {
       // Account already exists at this point - worst case the user flips it later in Settings,
@@ -29,9 +30,9 @@ export function EmailReminderNotice({ token, onDone }: { token: string; onDone: 
       <div className="modal">
         <h3 style={{ marginBottom: 6 }}>Willkommen!</h3>
         <p className="faint" style={{ marginBottom: 16 }}>
-          Du bekommst automatisch eine E-Mail, sobald eine deiner Hausaufgaben zeitlich knapp
-          wird. Falls du das nicht möchtest, kannst du es hier direkt abschalten (später
-          jederzeit in den Einstellungen änderbar).
+          Auf Wunsch schickt dir der Planer zusätzlich eine Vorschlags-E-Mail, sobald eine
+          Hausaufgabe zeitlich knapp wird - standardmäßig aus, jederzeit in den Einstellungen
+          änderbar.
         </p>
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: 20 }}>
           <input
@@ -40,7 +41,7 @@ export function EmailReminderNotice({ token, onDone }: { token: string; onDone: 
             onChange={(e) => setEnabled(e.target.checked)}
             style={{ width: "auto", marginBottom: 0 }}
           />
-          Per E-Mail erinnern, wenn eine Hausaufgabe bald fällig ist
+          Vorschlags-E-Mail aktivieren
         </label>
         <button type="button" style={{ width: "100%" }} onClick={handleContinue} disabled={busy}>
           {busy ? "Wird gespeichert..." : "Weiter"}

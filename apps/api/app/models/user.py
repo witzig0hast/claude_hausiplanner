@@ -16,7 +16,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     is_class_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     agent_tone: Mapped[str] = mapped_column(String(16), default="locker")  # "locker" | "streng"
-    email_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Off by default: this is now an opt-in "Vorschlags-E-Mail", not something everyone gets
+    # automatically - most users only want the in-app/push nudges.
+    email_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     # Which message types the agent is allowed to send this user - independent of whether a
     # push token or SMTP is even configured, so a user can mute one channel without affecting
     # the other (email_reminders_enabled above is channel-specific, these are message-type).

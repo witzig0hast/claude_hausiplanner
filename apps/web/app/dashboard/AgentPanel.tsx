@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { chatWithAgent, fetchAgentSummary, fetchWorkload, Workload } from "../../lib/api";
-import { SparkleIcon } from "../../components/icons";
+import { ChevronIcon, SparkleIcon } from "../../components/icons";
+
+const COLLAPSE_KEY = "hausiplanner_agent_collapsed";
 
 const LEVEL_LABEL: Record<Workload["level"], string> = {
   green: "Entspannt",
@@ -24,6 +26,27 @@ export default function AgentPanel({ token }: { token: string }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [asking, setAsking] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+    } catch {
+      // ignore - private browsing etc., just stays expanded
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     fetchWorkload(token).then(setWorkload).catch(() => {});
@@ -56,15 +79,23 @@ export default function AgentPanel({ token }: { token: string }) {
 
   return (
     <div className="card">
-      <div className="card-header">
+      <button
+        type="button"
+        className="card-header card-header-toggle"
+        onClick={toggleCollapsed}
+        aria-expanded={!collapsed}
+      >
         <span className="card-header-icon"><SparkleIcon size={16} /></span>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="card-header-title">KI-Assistent</div>
           <div className="card-header-sub">Zusammenfassung, Auslastung &amp; Rückfragen</div>
         </div>
-      </div>
+        <span className={`chevron ${collapsed ? "" : "open"}`}>
+          <ChevronIcon size={16} />
+        </span>
+      </button>
 
-      {workload && (
+      {!collapsed && workload && (
         <>
           <div className="workload-row" style={{ marginBottom: 8 }}>
             <span className={`pill ${workload.level}`}>{LEVEL_LABEL[workload.level]}</span>
@@ -79,9 +110,9 @@ export default function AgentPanel({ token }: { token: string }) {
         </>
       )}
 
-      {summary && <p className="muted" style={{ marginBottom: 14 }}>{summary}</p>}
+      {!collapsed && summary && <p className="muted" style={{ marginBottom: 14 }}>{summary}</p>}
 
-      {messages.length > 0 && (
+      {!collapsed && messages.length > 0 && (
         <div className="chat-log">
           {messages.map((m, i) => (
             <div key={i} className={`chat-bubble ${m.role}`}>{m.text}</div>
@@ -89,15 +120,17 @@ export default function AgentPanel({ token }: { token: string }) {
         </div>
       )}
 
-      <form onSubmit={ask} className="row">
-        <input
-          placeholder="Frage an den Agenten, z.B. „Wie viel Zeit brauche ich noch für Mathe?“"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          style={{ marginBottom: 0 }}
-        />
-        <button type="submit" disabled={asking}>{asking ? "..." : "Senden"}</button>
-      </form>
+      {!collapsed && (
+        <form onSubmit={ask} className="row">
+          <input
+            placeholder="Frage an den Agenten, z.B. „Wie viel Zeit brauche ich noch für Mathe?“"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            style={{ marginBottom: 0 }}
+          />
+          <button type="submit" disabled={asking}>{asking ? "..." : "Senden"}</button>
+        </form>
+      )}
     </div>
   );
 }

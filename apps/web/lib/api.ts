@@ -400,6 +400,16 @@ export async function setAgentTone(token: string, tone: "locker" | "streng"): Pr
   return res.json();
 }
 
+export async function setDisplayName(token: string, display_name: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me/display-name`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ display_name }),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Konnte Namen nicht ändern"));
+  return res.json();
+}
+
 export async function setEmailReminders(token: string, enabled: boolean): Promise<User> {
   const res = await fetch(`${API_BASE}/auth/me/email-reminders`, {
     method: "PUT",
