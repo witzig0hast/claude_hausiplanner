@@ -309,6 +309,25 @@ Scheduler-Job, der auch die Push-Erinnerung auslöst).
   alten Environment. Zur Kontrolle direkt im Container nachsehen:
   `docker compose exec api env | grep HOMEWORK_SMTP`.
 
+## Kalender-Abo (webcal)
+
+Neben dem einmaligen `.ics`-Download (Klasse → "Als .ics exportieren") gibt es unter
+Einstellungen → "Kalender-Abo" einen **laufenden** Abo-Link, pro Nutzer: einmal in
+Google/Apple/Outlook Kalender eingetragen, holt sich die Kalender-App den Inhalt danach selbst
+periodisch neu - neue Hausaufgaben und Prüfungstermine tauchen automatisch auf, ohne erneuten
+manuellen Export.
+
+- **Technisch:** `GET /homework/calendar-feed/{token}.ics`, bewusst ohne Login - Kalender-Apps
+  können beim automatischen Abruf keinen Authorization-Header mitschicken. Der Token selbst ist
+  das Geheimnis (lang, zufällig, `secrets.token_urlsafe(32)`), wird erst bei der ersten Anfrage
+  erzeugt (`GET /auth/me/calendar-feed`) und bleibt danach stabil.
+- **Inhalt:** offene Hausaufgaben + Prüfungen/einmalige Termine - absichtlich **nicht** der
+  volle wöchentliche Stundenplan, sonst würde jede einzelne Unterrichtsstunde für immer im
+  persönlichen Kalender landen.
+- **Widerrufen:** "Link widerrufen & neu erzeugen" in den Einstellungen invalidiert den alten
+  Link sofort (z.B. falls er versehentlich geteilt wurde) - muss danach in jeder Kalender-App neu
+  eingetragen werden.
+
 ## OwnAI Agent Bus
 
 Optionale Peer-to-Peer-Anbindung an [OwnAI](https://github.com/witzig0hast/ownai), den

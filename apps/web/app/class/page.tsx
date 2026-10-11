@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarEvent,
+  CalendarEventType,
   ClassInvite,
   createLessonPeriod,
   demoteMember,
@@ -63,6 +64,7 @@ export default function ClassPage() {
   const [eventDate, setEventDate] = useState("");
   const [eventStart, setEventStart] = useState("08:00");
   const [eventEnd, setEventEnd] = useState("08:45");
+  const [eventType, setEventType] = useState<CalendarEventType>("exam");
 
   type DraftLesson = {
     included: boolean;
@@ -177,6 +179,7 @@ export default function ClassPage() {
         ends_at: `${eventDate}T${eventEnd}:00`,
         is_recurring_weekly: false,
         weekday: null,
+        event_type: eventType,
       });
       setEventTitle("");
       setEventDate("");
@@ -660,14 +663,28 @@ export default function ClassPage() {
             )}
 
             <hr className="divider" />
-            <p className="field-label" style={{ marginBottom: 6 }}>Einmaliger Termin</p>
+            <p className="field-label" style={{ marginBottom: 6 }}>Termin eintragen</p>
             <p className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
-              Für Dinge, die nur einmal stattfinden (Ausflug, Elternabend, Vertretungsstunde).
-              Normale, wöchentliche Unterrichtsstunden trägst du oben im Stundenplan ein.
+              Für alles, was nur einmal stattfindet: Prüfungen/Klausuren, Ausflüge, Elternabende,
+              Vertretungsstunden. Normale, wöchentliche Unterrichtsstunden trägst du oben im
+              Stundenplan ein.
             </p>
             <form onSubmit={handleAddEvent}>
+              <label className="field-label">Art</label>
+              <div className="toggle-group" style={{ marginBottom: 12 }}>
+                <button type="button" className={eventType === "exam" ? "active" : ""} onClick={() => setEventType("exam")}>
+                  Prüfung
+                </button>
+                <button type="button" className={eventType === "other" ? "active" : ""} onClick={() => setEventType("other")}>
+                  Sonstiges
+                </button>
+              </div>
               <label className="field-label">Titel</label>
-              <input placeholder="z.B. Wandertag" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
+              <input
+                placeholder={eventType === "exam" ? "z.B. Mathe-Klausur" : "z.B. Wandertag"}
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+              />
               <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
               <div className="row">
                 <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)} />
@@ -680,15 +697,18 @@ export default function ClassPage() {
           <div className="card">
             <div className="card-header">
               <span className="card-header-icon"><CalendarIcon size={16} /></span>
-              <div className="card-header-title">Einmalige Termine</div>
+              <div className="card-header-title">Termine</div>
             </div>
             {events.filter((ev) => !ev.is_recurring_weekly).length === 0 && (
-              <p className="muted">Noch keine einmaligen Termine.</p>
+              <p className="muted">Noch keine Termine.</p>
             )}
             <div className="stack">
               {events.filter((ev) => !ev.is_recurring_weekly).map((ev) => (
                 <div key={ev.id} className="row" style={{ justifyContent: "space-between" }}>
-                  <span>{ev.title} <span className="faint">· {formatEventTime(ev)}</span></span>
+                  <span>
+                    {ev.event_type === "exam" && <span className="pill red" style={{ marginRight: 6 }}>Prüfung</span>}
+                    {ev.title} <span className="faint">· {formatEventTime(ev)}</span>
+                  </span>
                   <button className="ghost" onClick={() => handleDeleteEvent(ev.id)}>Löschen</button>
                 </div>
               ))}

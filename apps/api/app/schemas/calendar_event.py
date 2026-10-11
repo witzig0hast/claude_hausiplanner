@@ -11,6 +11,7 @@ class CalendarEventCreate(BaseModel):
     is_recurring_weekly: bool = False
     weekday: int | None = None
     subject_id: uuid.UUID | None = None
+    event_type: str = "lesson"  # "lesson" | "exam" | "other"
 
 
 class CalendarEventOut(BaseModel):
@@ -21,6 +22,7 @@ class CalendarEventOut(BaseModel):
     is_recurring_weekly: bool
     weekday: int | None
     subject_id: uuid.UUID | None
+    event_type: str
 
     class Config:
         from_attributes = True

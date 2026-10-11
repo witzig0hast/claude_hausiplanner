@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   attachmentDownloadUrl,
+  CalendarEvent,
   captureVoiceNote,
   createHomeworkWithRepeat,
   deleteAttachment,
   deleteHomework,
+  fetchCalendarEvents,
   fetchMyHomework,
   fetchMySubjects,
   fetchPendingSuggestion,
@@ -82,6 +84,7 @@ function DashboardInner() {
   const [user, setUser] = useState<User | null>(null);
   const [items, setItems] = useState<Homework[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [exams, setExams] = useState<CalendarEvent[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -173,9 +176,19 @@ function DashboardInner() {
   async function refresh() {
     if (!token) return;
     try {
-      const [hw, subj] = await Promise.all([fetchMyHomework(token), fetchMySubjects(token)]);
+      const [hw, subj, events] = await Promise.all([
+        fetchMyHomework(token),
+        fetchMySubjects(token),
+        fetchCalendarEvents(token).catch(() => []),
+      ]);
       setItems(hw);
       setSubjects(subj);
+      const now = Date.now();
+      setExams(
+        events
+          .filter((ev) => ev.event_type === "exam" && new Date(ev.starts_at).getTime() >= now)
+          .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+      );
       if (subj.length > 0 && !subjectId) setSubjectId(subj[0].id);
     } catch {
       setError("Daten konnten nicht geladen werden.");
@@ -526,6 +539,28 @@ function DashboardInner() {
           </div>
         </div>
       </div>
+
+      {exams.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-header-icon"><CalendarIcon size={16} /></span>
+            <div className="card-header-title">Nächste Prüfungen</div>
+          </div>
+          <div className="stack" style={{ gap: 8 }}>
+            {exams.slice(0, 4).map((ev) => {
+              const daysLeft = Math.ceil((new Date(ev.starts_at).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+              return (
+                <div key={ev.id} className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <span>{ev.title}</span>
+                  <span className={`pill ${daysLeft <= 2 ? "red" : daysLeft <= 7 ? "yellow" : "green"}`}>
+                    {daysLeft === 0 ? "Heute" : daysLeft === 1 ? "Morgen" : `in ${daysLeft} Tagen`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {token && <AgentPanel token={token} />}
 

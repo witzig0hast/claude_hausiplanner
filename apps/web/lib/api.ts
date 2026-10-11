@@ -253,6 +253,8 @@ export async function fetchInvite(token: string): Promise<ClassInvite> {
   return res.json();
 }
 
+export type CalendarEventType = "lesson" | "exam" | "other";
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -261,6 +263,7 @@ export type CalendarEvent = {
   is_recurring_weekly: boolean;
   weekday: number | null;
   subject_id: string | null;
+  event_type: CalendarEventType;
 };
 
 export async function fetchCalendarEvents(token: string): Promise<CalendarEvent[]> {
@@ -278,6 +281,7 @@ export async function createCalendarEvent(
     is_recurring_weekly: boolean;
     weekday: number | null;
     subject_id?: string | null;
+    event_type?: CalendarEventType;
   }
 ) {
   const res = await fetch(`${API_BASE}/calendar`, {
@@ -299,6 +303,7 @@ export async function updateCalendarEvent(
     is_recurring_weekly: boolean;
     weekday: number | null;
     subject_id?: string | null;
+    event_type?: CalendarEventType;
   }
 ) {
   const res = await fetch(`${API_BASE}/calendar/${eventId}`, {
@@ -398,6 +403,25 @@ export async function setAgentTone(token: string, tone: "locker" | "streng"): Pr
   });
   if (!res.ok) throw new Error("Konnte Tonfall nicht ändern");
   return res.json();
+}
+
+export async function fetchCalendarFeedToken(token: string): Promise<{ token: string }> {
+  const res = await fetch(`${API_BASE}/auth/me/calendar-feed`, { headers: authHeaders(token), cache: "no-store" });
+  if (!res.ok) throw new Error("Konnte Kalender-Link nicht laden");
+  return res.json();
+}
+
+export async function regenerateCalendarFeedToken(token: string): Promise<{ token: string }> {
+  const res = await fetch(`${API_BASE}/auth/me/calendar-feed/regenerate`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Konnte Kalender-Link nicht erneuern");
+  return res.json();
+}
+
+export function calendarFeedUrl(feedToken: string): string {
+  return `${API_BASE}/homework/calendar-feed/${feedToken}.ics`;
 }
 
 export async function setDisplayName(token: string, display_name: string): Promise<User> {

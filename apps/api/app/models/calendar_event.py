@@ -22,6 +22,10 @@ class CalendarEvent(Base):
     ends_at: Mapped[datetime] = mapped_column(DateTime)
     is_recurring_weekly: Mapped[bool] = mapped_column(Boolean, default=False)
     weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 0=Mon..6=Sun, for recurring lessons
+    # "lesson" (regular/recurring timetable slot), "exam" (Klausur/Test - gets its own dashboard
+    # section with a countdown instead of blending into generic one-off events), "other" (trips,
+    # meetings, anything else). Purely a display/grouping hint, doesn't change scheduling logic.
+    event_type: Mapped[str] = mapped_column(String(16), default="lesson")
 
     school_class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("school_classes.id"))
     school_class: Mapped["SchoolClass"] = relationship(back_populates="calendar_events")

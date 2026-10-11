@@ -120,6 +120,32 @@ def me(user: User = Depends(get_current_user)):
     return user
 
 
+@router.get("/me/calendar-feed")
+def get_calendar_feed_token(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Lazily creates the user's calendar feed token on first request, then always returns the
+    same one - stable across calls so the webcal:// URL the user subscribed to keeps working."""
+    if user.calendar_feed_token is None:
+        user.calendar_feed_token = secrets.token_urlsafe(32)
+        db.commit()
+        db.refresh(user)
+    return {"token": user.calendar_feed_token}
+
+
+@router.post("/me/calendar-feed/regenerate")
+def regenerate_calendar_feed_token(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Invalidates the previous webcal:// URL (e.g. if it leaked) and issues a fresh one."""
+    user.calendar_feed_token = secrets.token_urlsafe(32)
+    db.commit()
+    db.refresh(user)
+    return {"token": user.calendar_feed_token}
+
+
 @router.put("/me/display-name", response_model=UserOut)
 def set_display_name(
     payload: SetDisplayNameRequest,

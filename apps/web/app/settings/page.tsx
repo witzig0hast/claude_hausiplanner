@@ -5,12 +5,15 @@ import { useEffect, useState } from "react";
 import {
   AgentBusLogEntry,
   AgentBusStatus,
+  calendarFeedUrl,
   connectAgentBus,
   disconnectAgentBus,
   fetchAgentBusLog,
   fetchAgentBusStatus,
+  fetchCalendarFeedToken,
   fetchMe,
   fetchSsoStatus,
+  regenerateCalendarFeedToken,
   sendTestEmail,
   setAgentBusEnabled,
   setAgentTone,
@@ -21,7 +24,7 @@ import {
   User,
 } from "../../lib/api";
 import { AppShell } from "../../components/AppShell";
-import { CheckIcon, KeyIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
+import { CalendarIcon, CheckIcon, KeyIcon, MailIcon, ShareIcon, SlidersIcon, SunIcon } from "../../components/icons";
 
 const SSO_LINK_ERROR_MESSAGES: Record<string, string> = {
   sso_account_already_linked: "Diese SSO-Identität ist bereits mit einem anderen Konto verknüpft.",
@@ -48,6 +51,10 @@ export default function SettingsPage() {
 
   const [ssoEnabled, setSsoEnabled] = useState(false);
   const [ssoMessage, setSsoMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [feedToken, setFeedToken] = useState<string | null>(null);
+  const [feedCopied, setFeedCopied] = useState(false);
+  const [feedBusy, setFeedBusy] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -87,6 +94,34 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [router]);
+
+  async function handleShowFeed() {
+    if (!token) return;
+    setFeedBusy(true);
+    try {
+      const res = await fetchCalendarFeedToken(token);
+      setFeedToken(res.token);
+    } catch {
+      // ignore - button just stays in its "anzeigen" state, user can retry
+    } finally {
+      setFeedBusy(false);
+    }
+  }
+
+  async function handleRegenerateFeed() {
+    if (!token) return;
+    if (!confirm("Alter Kalender-Link funktioniert danach nicht mehr - in jeder Kalender-App neu eintragen. Fortfahren?")) return;
+    setFeedBusy(true);
+    try {
+      const res = await regenerateCalendarFeedToken(token);
+      setFeedToken(res.token);
+      setFeedCopied(false);
+    } catch {
+      // ignore
+    } finally {
+      setFeedBusy(false);
+    }
+  }
 
   async function handleSetTone(tone: "locker" | "streng") {
     if (!token) return;
@@ -322,6 +357,47 @@ export default function SettingsPage() {
             Aus
           </button>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-header-icon"><CalendarIcon size={16} /></span>
+          <div>
+            <div className="card-header-title">Kalender-Abo</div>
+            <div className="card-header-sub">
+              Einmal in Google/Apple/Outlook Kalender eintragen - aktualisiert sich danach von
+              selbst mit neuen Hausaufgaben und Prüfungsterminen
+            </div>
+          </div>
+        </div>
+        {feedToken ? (
+          <>
+            <div className="copy-row">
+              <input readOnly value={calendarFeedUrl(feedToken)} />
+              <button
+                className="secondary"
+                onClick={() => {
+                  navigator.clipboard.writeText(calendarFeedUrl(feedToken).replace(/^https?:/, "webcal:"));
+                  setFeedCopied(true);
+                }}
+              >
+                {feedCopied ? "Kopiert" : "Kopieren"}
+              </button>
+            </div>
+            <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+              In den meisten Kalender-Apps: "Kalender abonnieren" / "Per URL hinzufügen" und den
+              Link einfügen (mit <code>webcal://</code> statt <code>http://</code> am Anfang, falls
+              die App danach fragt).
+            </p>
+            <button type="button" className="ghost" style={{ marginTop: 10 }} onClick={handleRegenerateFeed} disabled={feedBusy}>
+              {feedBusy ? "Wird erneuert..." : "Link widerrufen & neu erzeugen"}
+            </button>
+          </>
+        ) : (
+          <button type="button" className="secondary" onClick={handleShowFeed} disabled={feedBusy}>
+            {feedBusy ? "Wird geladen..." : "Abo-Link anzeigen"}
+          </button>
+        )}
       </div>
 
       <div className="card">

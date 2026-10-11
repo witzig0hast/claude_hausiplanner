@@ -42,6 +42,13 @@ class User(Base):
     # value) - simpler than making the column nullable for one login method.
     sso_subject: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
 
+    # Secret, unguessable token for the live calendar subscription feed (webcal://) - generated
+    # lazily on first request rather than at signup, so accounts that never use it never get one.
+    # The token itself is the auth: Google/Apple/Outlook calendar apps poll this URL periodically
+    # and can't send an Authorization header, so the feed endpoint is deliberately unauthenticated
+    # and relies entirely on this being long and random.
+    calendar_feed_token: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     school_class_id: Mapped[uuid.UUID | None] = mapped_column(

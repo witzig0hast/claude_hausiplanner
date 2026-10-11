@@ -125,9 +125,9 @@ def create_homework(
     return _serialize(hw, viewer_id=user.id)
 
 
-@router.get("/homework/export.ics")
-def export_ics(user: User = Depends(require_class_member), db: Session = Depends(get_db)):
-    """Offene Hausaufgaben als .ics - importierbar in Apple/Google/Outlook Kalender."""
+def _build_ics(user: User, db: Session, *, live_feed: bool) -> str:
+    """Shared by the one-time authenticated download and the live webcal subscription feed -
+    same content either way, just a different delivery mechanism."""
     items = (
         db.query(Homework)
         .options(*_ATTACHMENT_OPTIONS)
@@ -137,10 +137,27 @@ def export_ics(user: User = Depends(require_class_member), db: Session = Depends
     )
     open_items = [hw for hw in items if not any(c.user_id == user.id for c in hw.completions)]
 
+    # Only exams/one-off events, never the recurring weekly timetable itself - that would mean
+    # every single lesson, forever, cluttering a personal calendar that's meant for deadlines and
+    # exam dates, not a duplicate of the whole school schedule.
+    events = (
+        db.query(CalendarEvent)
+        .filter(
+            CalendarEvent.school_class_id == user.school_class_id,
+            CalendarEvent.is_recurring_weekly.is_(False),
+        )
+        .order_by(CalendarEvent.starts_at.asc())
+        .all()
+    )
+
     def fmt(dt):
         return dt.strftime("%Y%m%dT%H%M%SZ")
 
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hausaufgabenplaner//DE"]
+    if live_feed:
+        # Hints calendar apps that poll this URL how often to re-check (minutes); ignored by
+        # clients that don't support it, harmless either way.
+        lines += ["X-WR-CALNAME:Hausaufgabenplaner", "REFRESH-INTERVAL;VALUE=DURATION:PT4H"]
     for hw in open_items:
         lines += [
             "BEGIN:VEVENT",
@@ -151,13 +168,40 @@ def export_ics(user: User = Depends(require_class_member), db: Session = Depends
             f"DESCRIPTION:{(hw.description or '').replace(chr(10), ' ')}",
             "END:VEVENT",
         ]
+    for ev in events:
+        prefix = "Prüfung: " if ev.event_type == "exam" else ""
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{ev.id}@hausiplanner",
+            f"DTSTAMP:{fmt(ev.starts_at)}",
+            f"DTSTART:{fmt(ev.starts_at)}",
+            f"DTEND:{fmt(ev.ends_at)}",
+            f"SUMMARY:{prefix}{ev.title}",
+            "END:VEVENT",
+        ]
     lines.append("END:VCALENDAR")
-    ics_content = "\r\n".join(lines)
+    return "\r\n".join(lines)
+
+
+@router.get("/homework/export.ics")
+def export_ics(user: User = Depends(require_class_member), db: Session = Depends(get_db)):
+    """Offene Hausaufgaben als .ics - importierbar in Apple/Google/Outlook Kalender (Einmal-Download)."""
     return Response(
-        content=ics_content,
+        content=_build_ics(user, db, live_feed=False),
         media_type="text/calendar",
         headers={"Content-Disposition": "attachment; filename=hausaufgaben.ics"},
     )
+
+
+@router.get("/homework/calendar-feed/{token}.ics")
+def calendar_feed(token: str, db: Session = Depends(get_db)):
+    """Laufendes Kalender-Abo (webcal://) - bewusst ohne Login, da Kalender-Apps beim
+    periodischen Abruf keinen Authorization-Header mitschicken können. Der Token selbst ist das
+    Geheimnis (lang, zufällig, pro Nutzer einmalig über /auth/me/calendar-feed erzeugt)."""
+    user = db.query(User).filter(User.calendar_feed_token == token).first()
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unbekannter oder widerrufener Kalender-Link")
+    return Response(content=_build_ics(user, db, live_feed=True), media_type="text/calendar")
 
 
 @router.delete("/homework/{homework_id}", status_code=204)

@@ -29,6 +29,12 @@ def list_events(user: User = Depends(require_class_member), db: Session = Depend
 
 
 _VALID_WEEKDAYS = {"Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"}
+_VALID_EVENT_TYPES = {"lesson", "exam", "other"}
+
+
+def _validate_event_type(event_type: str) -> None:
+    if event_type not in _VALID_EVENT_TYPES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "event_type must be 'lesson', 'exam' or 'other'")
 
 
 @router.post("/extract-from-image", response_model=TimetableSuggestion)
@@ -76,6 +82,7 @@ def create_event(
 ):
     """Only the class admin maintains the timetable/calendar (WebUntis API is locked, so this
     replaces an automatic sync)."""
+    _validate_event_type(payload.event_type)
     event = CalendarEvent(
         **payload.model_dump(),
         school_class_id=user.school_class_id,
@@ -94,6 +101,7 @@ def update_event(
     user: User = Depends(require_class_admin),
     db: Session = Depends(get_db),
 ):
+    _validate_event_type(payload.event_type)
     event = db.get(CalendarEvent, event_id)
     if event is None or event.school_class_id != user.school_class_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Event not found")
