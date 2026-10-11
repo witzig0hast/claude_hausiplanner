@@ -12,6 +12,7 @@ class CalendarEventCreate(BaseModel):
     weekday: int | None = None
     subject_id: uuid.UUID | None = None
     event_type: str = "lesson"  # "lesson" | "exam" | "other"
+    course_id: uuid.UUID | None = None  # set for one of several parallel timetable tracks
 
 
 class CalendarEventOut(BaseModel):
@@ -23,6 +24,7 @@ class CalendarEventOut(BaseModel):
     weekday: int | None
     subject_id: uuid.UUID | None
     event_type: str
+    course_id: uuid.UUID | None
 
     class Config:
         from_attributes = True

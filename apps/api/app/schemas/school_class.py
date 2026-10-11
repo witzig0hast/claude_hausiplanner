@@ -12,10 +12,15 @@ class SchoolClassOut(BaseModel):
     id: uuid.UUID
     name: str
     invite_code: str
+    organization_mode: str  # "timetable" | "courses"
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class SetOrganizationModeRequest(BaseModel):
+    organization_mode: str  # "timetable" | "courses"
 
 
 class SubjectCreate(BaseModel):

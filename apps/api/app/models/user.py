@@ -58,6 +58,9 @@ class User(Base):
 
     completions: Mapped[list["HomeworkCompletion"]] = relationship(back_populates="user")
     push_tokens: Mapped[list["PushToken"]] = relationship(back_populates="user")
+    course_memberships: Mapped[list["CourseMembership"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
     @property
     def sso_connected(self) -> bool:

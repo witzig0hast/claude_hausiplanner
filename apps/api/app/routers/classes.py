@@ -16,16 +16,37 @@ from app.schemas.school_class import (
     LessonPeriodOut,
     MemberOut,
     SchoolClassOut,
+    SetOrganizationModeRequest,
     SubjectCreate,
     SubjectOut,
     SubjectStatOut,
 )
+
+_VALID_ORGANIZATION_MODES = {"timetable", "courses"}
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
 
 @router.get("/me", response_model=SchoolClassOut)
 def my_class(user: User = Depends(require_class_member)):
+    return user.school_class
+
+
+@router.put("/me/organization-mode", response_model=SchoolClassOut)
+def set_organization_mode(
+    payload: SetOrganizationModeRequest,
+    user: User = Depends(require_class_admin),
+    db: Session = Depends(get_db),
+):
+    """"timetable" = today's shared weekly grid (default). "courses" = pure Oberstufe-style
+    course system, no shared grid - students organize purely through Course membership instead.
+    Switching modes never deletes anything (timetable slots, existing courses) - it only
+    changes which admin UI/section is shown."""
+    if payload.organization_mode not in _VALID_ORGANIZATION_MODES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "organization_mode must be 'timetable' or 'courses'")
+    user.school_class.organization_mode = payload.organization_mode
+    db.commit()
+    db.refresh(user.school_class)
     return user.school_class
 
 

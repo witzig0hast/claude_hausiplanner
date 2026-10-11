@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import agent, agent_bus, auth, calendar, classes, homework, planning, sys_admin, voice
+from app.routers import agent, agent_bus, auth, calendar, classes, courses, homework, planning, sys_admin, voice
 from app.services.scheduler import start_scheduler
 
 logger = logging.getLogger("app")
@@ -31,6 +31,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(classes.router)
+app.include_router(courses.router)
 app.include_router(homework.router)
 app.include_router(calendar.router)
 app.include_router(agent.router)

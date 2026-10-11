@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.deps import require_class_admin, require_class_member
 from app.models.calendar_event import CalendarEvent
+from app.models.course import Course, CourseMembership
 from app.models.homework import Homework, HomeworkCompletion
 from app.models.homework_attachment import HomeworkAttachment
 from app.models.school_class import SchoolClass
@@ -29,14 +30,24 @@ router = APIRouter(tags=["homework"])
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
-_ATTACHMENT_OPTIONS = (joinedload(Homework.subject), joinedload(Homework.completions), joinedload(Homework.attachments))
+_ATTACHMENT_OPTIONS = (
+    joinedload(Homework.subject),
+    joinedload(Homework.completions),
+    joinedload(Homework.attachments),
+    joinedload(Homework.course),
+)
 
 
 def _serialize(hw: Homework, viewer_id: uuid.UUID | None) -> HomeworkOut:
     out = HomeworkOut.model_validate(hw)
     out.completed_count = len(hw.completions)
     out.completed_by_me = viewer_id is not None and any(c.user_id == viewer_id for c in hw.completions)
+    out.course_name = hw.course.name if hw.course is not None else None
     return out
+
+
+def _my_course_ids(db: Session, user_id: uuid.UUID) -> list[uuid.UUID]:
+    return [m.course_id for m in db.query(CourseMembership).filter(CourseMembership.user_id == user_id).all()]
 
 
 @router.get("/public/classes/{class_id}/homework", response_model=list[HomeworkOut])
@@ -45,10 +56,12 @@ def public_homework(class_id: uuid.UUID, db: Session = Depends(get_db)):
     school_class = db.get(SchoolClass, class_id)
     if school_class is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Class not found")
+    # No login = not a member of any course, so only class-wide (course_id NULL) homework is
+    # visible here - course-scoped homework never leaks through the public link.
     items = (
         db.query(Homework)
         .options(*_ATTACHMENT_OPTIONS)
-        .filter(Homework.school_class_id == class_id)
+        .filter(Homework.school_class_id == class_id, Homework.course_id.is_(None))
         .order_by(Homework.due_at.asc())
         .all()
     )
@@ -60,10 +73,16 @@ def list_homework(
     user: User = Depends(require_class_member),
     db: Session = Depends(get_db),
 ):
+    # Class-wide homework (course_id NULL) stays visible to everyone, same as before courses
+    # existed; course-scoped homework only to that course's own members.
+    my_course_ids = _my_course_ids(db, user.id)
     items = (
         db.query(Homework)
         .options(*_ATTACHMENT_OPTIONS)
-        .filter(Homework.school_class_id == user.school_class_id)
+        .filter(
+            Homework.school_class_id == user.school_class_id,
+            (Homework.course_id.is_(None)) | (Homework.course_id.in_(my_course_ids)),
+        )
         .order_by(Homework.due_at.asc())
         .all()
     )
@@ -106,6 +125,19 @@ def create_homework(
     if data.get("priority") not in (None, "niedrig", "normal", "hoch"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "priority must be 'niedrig', 'normal' or 'hoch'")
 
+    if data.get("course_id") is not None:
+        course = db.get(Course, data["course_id"])
+        if course is None or course.school_class_id != user.school_class_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Course not found")
+        is_member = (
+            db.query(CourseMembership)
+            .filter(CourseMembership.course_id == course.id, CourseMembership.user_id == user.id)
+            .first()
+            is not None
+        )
+        if not is_member:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Nur Kursmitglieder können hier Hausaufgaben eintragen")
+
     hw = Homework(**data, school_class_id=user.school_class_id, created_by_id=user.id)
     db.add(hw)
 
@@ -128,10 +160,14 @@ def create_homework(
 def _build_ics(user: User, db: Session, *, live_feed: bool) -> str:
     """Shared by the one-time authenticated download and the live webcal subscription feed -
     same content either way, just a different delivery mechanism."""
+    my_course_ids = _my_course_ids(db, user.id)
     items = (
         db.query(Homework)
         .options(*_ATTACHMENT_OPTIONS)
-        .filter(Homework.school_class_id == user.school_class_id)
+        .filter(
+            Homework.school_class_id == user.school_class_id,
+            (Homework.course_id.is_(None)) | (Homework.course_id.in_(my_course_ids)),
+        )
         .order_by(Homework.due_at.asc())
         .all()
     )

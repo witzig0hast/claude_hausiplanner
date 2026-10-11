@@ -20,6 +20,11 @@ class SchoolClass(Base):
     invite_code: Mapped[str] = mapped_column(
         String(32), unique=True, default=generate_invite_code, index=True
     )
+    # "timetable" (default, today's behavior - one shared weekly grid) or "courses" (Oberstufe-
+    # style: no shared timetable, members organize purely through Course membership). Either
+    # mode can still use Course for parallel timetable-slot variants (e.g. Religion tracks) -
+    # this flag only controls whether the admin timetable-grid UI itself is shown.
+    organization_mode: Mapped[str] = mapped_column(String(16), default="timetable")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # cascade: deleting a class (e.g. via the hidden superadmin surface) removes
@@ -35,3 +40,4 @@ class SchoolClass(Base):
     lesson_periods: Mapped[list["LessonPeriod"]] = relationship(
         back_populates="school_class", cascade="all, delete-orphan"
     )
+    courses: Mapped[list["Course"]] = relationship(back_populates="school_class", cascade="all, delete-orphan")

@@ -26,6 +26,12 @@ class Homework(Base):
     subject_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("subjects.id"))
     subject: Mapped["Subject"] = relationship(back_populates="homework_items")
 
+    # Null = visible to the whole class, exactly like before courses existed. Set = only
+    # visible to (and postable by) members of that course - e.g. homework for "Mathe LK" that
+    # the GK students never need to see.
+    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id"), nullable=True)
+    course: Mapped["Course"] = relationship()
+
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
     completions: Mapped[list["HomeworkCompletion"]] = relationship(

@@ -33,4 +33,10 @@ class CalendarEvent(Base):
     subject_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("subjects.id"), nullable=True)
     subject: Mapped["Subject"] = relationship(back_populates="calendar_events")
 
+    # Set when this slot is one of several parallel tracks at the same weekday+time (e.g.
+    # Religion katholisch/evangelisch/Ethik all at Tuesday 6th period) - each track is its own
+    # CalendarEvent row pointing at a different Course. Null for a normal, single-track lesson.
+    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id"), nullable=True)
+    course: Mapped["Course"] = relationship()
+
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
