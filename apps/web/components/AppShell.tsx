@@ -54,10 +54,12 @@ export function AppShell({
   }
 
   const nav = [
-    { href: "/dashboard", label: "Hausaufgaben", icon: HomeIcon },
-    { href: "/class", label: "Klasse", icon: UsersIcon },
-    ...(user?.is_class_admin ? [{ href: "/admin", label: "Admin", icon: ShieldIcon }] : []),
-    { href: "/settings", label: "Einstellungen", icon: SettingsIcon },
+    { href: "/dashboard", label: "Hausaufgaben", sub: "Deine Aufgaben & Prüfungen", icon: HomeIcon },
+    { href: "/class", label: "Klasse", sub: "Mitglieder, Stundenplan, Teilen", icon: UsersIcon },
+    ...(user?.is_class_admin
+      ? [{ href: "/admin", label: "Admin", sub: "Fächer & Klassen-Einstellungen", icon: ShieldIcon }]
+      : []),
+    { href: "/settings", label: "Einstellungen", sub: "Konto, Benachrichtigungen, Kalender", icon: SettingsIcon },
   ];
 
   function logout() {
@@ -147,12 +149,15 @@ export function AppShell({
             )}
 
             <div className="sidebar-nav">
-              {nav.map(({ href, label, icon: Icon }) => {
+              {nav.map(({ href, label, sub, icon: Icon }) => {
                 const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
                 return (
                   <a key={href} href={href} className={`nav-link ${active ? "active" : ""}`} onClick={() => setOpen(false)}>
                     <Icon size={17} />
-                    {label}
+                    <span>
+                      <span style={{ display: "block" }}>{label}</span>
+                      <span className="nav-link-sub">{sub}</span>
+                    </span>
                   </a>
                 );
               })}

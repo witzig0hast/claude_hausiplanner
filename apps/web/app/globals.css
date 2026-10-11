@@ -213,6 +213,14 @@ main {
   gap: 2px;
 }
 
+.nav-link-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--faint);
+  margin-top: 1px;
+}
+
 .nav-link {
   display: flex;
   align-items: center;

@@ -465,9 +465,12 @@ export default function ClassPage() {
             </div>
 
             <div className="card" style={{ background: "var(--surface-alt)", marginBottom: 16 }}>
-              <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
-                <BookIcon size={16} />
-                <p className="section-title" style={{ margin: 0 }}>Dein Stundenplan</p>
+              <div className="card-header">
+                <span className="card-header-icon"><BookIcon size={16} /></span>
+                <div>
+                  <div className="card-header-title">Wochenplan</div>
+                  <div className="card-header-sub">Welches Fach in welcher Stunde - für die ganze Klasse</div>
+                </div>
               </div>
               {periods.length === 0 ? (
                 <p className="muted" style={{ fontSize: 13 }}>
