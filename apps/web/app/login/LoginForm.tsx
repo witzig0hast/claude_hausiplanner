@@ -124,7 +124,7 @@ export default function LoginForm() {
         )}
 
         {error && (
-          <p style={{ color: "#f19999", background: "var(--red-bg)", border: "1px solid #4d2323", padding: "10px 14px", borderRadius: 6, fontSize: 13.5 }}>
+          <p style={{ color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red)", padding: "10px 14px", borderRadius: 6, fontSize: 13.5 }}>
             {error}
           </p>
         )}

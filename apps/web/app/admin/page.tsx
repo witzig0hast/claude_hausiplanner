@@ -26,7 +26,6 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [subjectName, setSubjectName] = useState("");
-  const [subjectColor, setSubjectColor] = useState("#3B82F6");
 
   useEffect(() => {
     const t = localStorage.getItem("hausiplanner_token");
@@ -68,7 +67,7 @@ export default function AdminPage() {
     e.preventDefault();
     if (!token || !subjectName) return;
     try {
-      await createSubject(token, { name: subjectName, color: subjectColor });
+      await createSubject(token, { name: subjectName });
       setSubjectName("");
       refresh();
     } catch (err) {
@@ -88,7 +87,7 @@ export default function AdminPage() {
     <AppShell user={user}>
       <h1 style={{ marginBottom: 24 }}>Admin</h1>
 
-      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
+      {error && <p style={{ color: "var(--red)" }}>{error}</p>}
 
       <div className="stat-grid">
         <div className="stat-tile">
@@ -131,10 +130,7 @@ export default function AdminPage() {
           {stats.map((s) => (
             <div key={s.subject_id}>
               <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
-                <span className="subject-tag" style={{ marginBottom: 0 }}>
-                  <span className="subject-dot" style={{ background: s.subject_color }} />
-                  {s.subject_name}
-                </span>
+                <span className="subject-tag" style={{ marginBottom: 0 }}>{s.subject_name}</span>
                 <span className="faint">
                   {s.homework_count} Aufgabe{s.homework_count === 1 ? "" : "n"} · {Math.round(s.avg_completion_rate * 100)}% erledigt
                 </span>
@@ -144,7 +140,7 @@ export default function AdminPage() {
                   style={{
                     height: "100%",
                     width: `${Math.round(s.avg_completion_rate * 100)}%`,
-                    background: s.subject_color,
+                    background: "var(--accent)",
                   }}
                 />
               </div>
@@ -160,21 +156,12 @@ export default function AdminPage() {
         </div>
         <form onSubmit={handleAddSubject} className="row" style={{ marginBottom: 16 }}>
           <input placeholder="Neues Fach" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} style={{ marginBottom: 0 }} />
-          <input
-            type="color"
-            value={subjectColor}
-            onChange={(e) => setSubjectColor(e.target.value)}
-            style={{ width: 48, padding: 3, marginBottom: 0, flexShrink: 0 }}
-          />
           <button type="submit" style={{ flexShrink: 0 }}>Hinzufügen</button>
         </form>
         <div className="stack">
           {subjects.map((s) => (
             <div key={s.id} className="row" style={{ justifyContent: "space-between" }}>
-              <span className="subject-tag" style={{ marginBottom: 0 }}>
-                <span className="subject-dot" style={{ background: s.color }} />
-                {s.name}
-              </span>
+              <span className="subject-tag" style={{ marginBottom: 0 }}>{s.name}</span>
               <button className="ghost" onClick={() => handleDeleteSubject(s.id)}>Löschen</button>
             </div>
           ))}

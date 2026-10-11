@@ -34,7 +34,7 @@ function SsoCallbackInner() {
     <div style={{ maxWidth: 420, margin: "0 auto", paddingTop: 80, textAlign: "center" }}>
       {error ? (
         <>
-          <p style={{ color: "#f19999" }}>{error}</p>
+          <p style={{ color: "var(--red)" }}>{error}</p>
           <a href="/login">Zurück zum Login</a>
         </>
       ) : (

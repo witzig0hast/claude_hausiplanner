@@ -1,4 +1,44 @@
+/* Default theme: light, warm-neutral, Apple-ish (San Francisco system grays, generous
+   radius/whitespace, color reserved for genuinely urgent states rather than decoration). */
 :root {
+  color-scheme: light;
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-alt: #f2f2f4;
+  --border: #e5e5ea;
+  --border-strong: #d2d2d7;
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --faint: #98989d;
+
+  --accent: #2f8a5f;
+  --accent-bright: #37a06d;
+  --accent-hover: #256f4c;
+  --accent-soft: #e6f4ec;
+  --accent-text: #ffffff;
+
+  --green: #1a9c5c;
+  --green-bg: #e3f6ea;
+  --amber: #a8650a;
+  --amber-bg: #fcf0db;
+  --red: #c23a3a;
+  --red-bg: #fbe5e5;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+
+  /* Soft, close, low-contrast - separation without a dramatic drop shadow. */
+  --shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.04);
+  --shadow-md: 0 1px 3px rgba(20, 20, 20, 0.05), 0 10px 26px -14px rgba(20, 20, 20, 0.14);
+}
+
+/* ---------- Dark theme (opt-in via Einstellungen) ---------- */
+:root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0b0d0c;
   --surface: #171a18;
@@ -15,80 +55,46 @@
   --accent-soft: #16241d;
   --accent-text: #0b0d0c;
 
-  --green: #1a9c5c;
+  --green: #5fc98a;
   --green-bg: #10241a;
-  --amber: #c2790a;
+  --amber: #e0a94f;
   --amber-bg: #271d0d;
-  --red: #d13c3c;
+  --red: #e38686;
   --red-bg: #2a1414;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
-  --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
-
-  /* Neutral, non-colored depth - not a glow, just separation from the background. */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px -10px rgba(0, 0, 0, 0.6);
 }
 
-/* ---------- Light theme ---------- */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f4f5f3;
-  --surface: #ffffff;
-  --surface-alt: #eef0ed;
-  --border: #dde0db;
-  --border-strong: #c7ccc2;
-  --text: #151815;
-  --muted: #565d57;
-  --faint: #868d85;
-
-  --accent-soft: #e4f3ea;
-  --accent-text: #0b0d0c;
-
-  --green-bg: #e3f6ea;
-  --amber-bg: #fcf0db;
-  --red-bg: #fbe5e5;
-
-  --shadow-sm: 0 1px 2px rgba(20, 20, 15, 0.06);
-  --shadow-md: 0 1px 2px rgba(20, 20, 15, 0.05), 0 8px 20px -10px rgba(20, 20, 15, 0.18);
-}
-
 /* ---------- Accent color presets (default: green, set above) ---------- */
-:root[data-accent="blue"] {
-  --accent: #5b9bd5; --accent-bright: #7db8ea; --accent-hover: #4a87c2; --accent-soft: #112233;
-}
-:root[data-theme="light"][data-accent="blue"] { --accent-soft: #e2edf8; }
+:root[data-accent="blue"] { --accent: #2f6fb3; --accent-bright: #3f82c9; --accent-hover: #255a92; --accent-soft: #e2edf8; }
+:root[data-theme="dark"][data-accent="blue"] { --accent: #5b9bd5; --accent-bright: #7db8ea; --accent-hover: #4a87c2; --accent-soft: #112233; }
 
-:root[data-accent="purple"] {
-  --accent: #a78bd6; --accent-bright: #c3aaf0; --accent-hover: #9274c4; --accent-soft: #221a33;
-}
-:root[data-theme="light"][data-accent="purple"] { --accent-soft: #ede6f8; }
+:root[data-accent="purple"] { --accent: #7a5bb3; --accent-bright: #8e6ec9; --accent-hover: #634a92; --accent-soft: #ede6f8; }
+:root[data-theme="dark"][data-accent="purple"] { --accent: #a78bd6; --accent-bright: #c3aaf0; --accent-hover: #9274c4; --accent-soft: #221a33; }
 
-:root[data-accent="orange"] {
-  --accent: #e08f4f; --accent-bright: #f2ac6e; --accent-hover: #cc7a3c; --accent-soft: #331f10;
-}
-:root[data-theme="light"][data-accent="orange"] { --accent-soft: #fbead9; }
+:root[data-accent="orange"] { --accent: #c06a26; --accent-bright: #d87c30; --accent-hover: #a2561e; --accent-soft: #fbead9; }
+:root[data-theme="dark"][data-accent="orange"] { --accent: #e08f4f; --accent-bright: #f2ac6e; --accent-hover: #cc7a3c; --accent-soft: #331f10; }
 
-:root[data-accent="pink"] {
-  --accent: #d97aa8; --accent-bright: #ee98c3; --accent-hover: #c4648f; --accent-soft: #331622;
-}
-:root[data-theme="light"][data-accent="pink"] { --accent-soft: #fbe6f0; }
+:root[data-accent="pink"] { --accent: #b84e7e; --accent-bright: #ce5f90; --accent-hover: #9b3f68; --accent-soft: #fbe6f0; }
+:root[data-theme="dark"][data-accent="pink"] { --accent: #d97aa8; --accent-bright: #ee98c3; --accent-hover: #c4648f; --accent-soft: #331622; }
 
 * { box-sizing: border-box; }
 
 html { scrollbar-color: var(--border-strong) transparent; }
 
+/* Deliberately flat/plain, not a decorative gradient glow - calmer, less "designed",
+   closer to how a native Apple app's plain system background reads. */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   background-color: var(--bg);
+  min-height: 100vh;
+}
+
+:root[data-theme="dark"] body {
   background-image:
     radial-gradient(1200px 640px at 10% -10%, rgba(127, 182, 154, 0.09), transparent 60%),
     radial-gradient(900px 700px at 100% 5%, rgba(255, 255, 255, 0.035), transparent 55%),
@@ -96,15 +102,6 @@ body {
     linear-gradient(180deg, #0d100e 0%, #0b0d0c 480px);
   background-repeat: no-repeat;
   background-attachment: fixed;
-  min-height: 100vh;
-}
-
-:root[data-theme="light"] body {
-  background-image:
-    radial-gradient(1200px 640px at 10% -10%, rgba(127, 182, 154, 0.14), transparent 60%),
-    radial-gradient(900px 700px at 100% 5%, rgba(20, 20, 15, 0.025), transparent 55%),
-    radial-gradient(1000px 500px at 50% 115%, rgba(127, 182, 154, 0.08), transparent 60%),
-    linear-gradient(180deg, #f8f9f6 0%, #f4f5f3 480px);
 }
 
 ::selection { background: var(--accent-soft); color: var(--accent-bright); }
@@ -346,7 +343,7 @@ main {
 .mic-button.recording {
   background: var(--red-bg);
   border-color: var(--red);
-  color: #f19999;
+  color: var(--red);
   animation: mic-pulse 1.4s ease-in-out infinite;
 }
 
@@ -378,8 +375,8 @@ main {
   animation: toast-in 0.2s var(--ease);
 }
 
-.toast-success { border-color: #1f4a34; color: #6ee7a8; }
-.toast-error { border-color: #4d2323; color: #f19999; }
+.toast-success { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.toast-error { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -427,7 +424,7 @@ main {
 }
 
 .stat-tile-value.accent { color: var(--accent-bright); }
-.stat-tile-value.warn { color: #f0b84e; }
+.stat-tile-value.warn { color: var(--amber); }
 
 .stat-tile-sub {
   font-size: 12px;
@@ -640,24 +637,16 @@ a:hover { color: var(--accent-bright); }
 
 /* ---------- Subject tag ---------- */
 
+/* Plain text, no color/pill - subjects are told apart by name alone. */
 .subject-tag {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 3px 10px 3px 4px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 650;
   margin-bottom: 10px;
-  border: 1px solid var(--border);
-  color: var(--text);
-}
-
-.subject-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .due {
@@ -809,18 +798,18 @@ input[type="color"] { padding: 4px; cursor: pointer; }
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 11px;
+  gap: 6px;
+  padding: 3px 9px;
   border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 11.5px;
+  font-weight: 650;
 }
 
-.pill.green { color: #6ee7a8; background: var(--green-bg); border: 1px solid #1f4a34; }
-.pill.yellow { color: #f0b84e; background: var(--amber-bg); border: 1px solid #4a3714; }
-.pill.red { color: #f19999; background: var(--red-bg); border: 1px solid #4d2323; }
+/* Muted, theme-aware tints (not raw neon) - color here always means a real status, never decoration. */
+.pill.green { color: var(--green); background: var(--green-bg); }
+.pill.yellow { color: var(--amber); background: var(--amber-bg); }
+.pill.red { color: var(--red); background: var(--red-bg); }
+.pill.neutral { color: var(--muted); background: var(--surface-alt); }
 
 .pill, .subject-tag {
   animation: pop-in 0.25s var(--ease) backwards;

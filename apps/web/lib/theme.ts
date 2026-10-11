@@ -13,11 +13,11 @@ export const ACCENTS: { value: Accent; label: string; swatch: string }[] = [
 ];
 
 export function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   try {
-    return (localStorage.getItem(THEME_KEY) as Theme) || "dark";
+    return (localStorage.getItem(THEME_KEY) as Theme) || "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 

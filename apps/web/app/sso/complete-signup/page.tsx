@@ -45,7 +45,7 @@ function CompleteSignupInner() {
   if (!pendingToken) {
     return (
       <div style={{ maxWidth: 420, margin: "0 auto", paddingTop: 80, textAlign: "center" }}>
-        <p style={{ color: "#f19999" }}>Ungültiger Registrierungslink.</p>
+        <p style={{ color: "var(--red)" }}>Ungültiger Registrierungslink.</p>
         <a href="/login">Zurück zum Login</a>
       </div>
     );
@@ -83,7 +83,7 @@ function CompleteSignupInner() {
         )}
 
         {error && (
-          <p style={{ color: "#f19999", background: "var(--red-bg)", border: "1px solid #4d2323", padding: "10px 14px", borderRadius: 6, fontSize: 13.5 }}>
+          <p style={{ color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red)", padding: "10px 14px", borderRadius: 6, fontSize: 13.5 }}>
             {error}
           </p>
         )}

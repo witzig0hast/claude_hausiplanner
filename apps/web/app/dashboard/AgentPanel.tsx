@@ -14,7 +14,7 @@ const LEVEL_LABEL: Record<Workload["level"], string> = {
 
 const LEVEL_COLOR: Record<Workload["level"], string> = {
   green: "var(--accent)",
-  yellow: "#f0b84e",
+  yellow: "var(--amber)",
   red: "var(--red)",
 };
 

@@ -348,7 +348,7 @@ export default function ClassPage() {
     <AppShell user={user}>
       <h1 style={{ marginBottom: 24 }}>Klasse</h1>
 
-      {error && <p style={{ color: "#fda4af" }}>{error}</p>}
+      {error && <p style={{ color: "var(--red)" }}>{error}</p>}
 
       {invite && (
         <div className="card">
@@ -519,7 +519,7 @@ export default function ClassPage() {
                                       marginBottom: 0,
                                       width: "100%",
                                       minWidth: 110,
-                                      borderColor: existing ? undefined : "#ef4444",
+                                      borderColor: existing ? undefined : "var(--red)",
                                     }}
                                   >
                                     <option value="">{existing ? "– zurücksetzen –" : "fehlt noch"}</option>
@@ -573,7 +573,7 @@ export default function ClassPage() {
               />
             </div>
             {scanning && <p className="faint pulse" style={{ marginBottom: 12 }}>Stundenplan für {scanWeekday} wird erkannt...</p>}
-            {scanError && <p style={{ color: "#f19999", marginBottom: 12 }}>{scanError}</p>}
+            {scanError && <p style={{ color: "var(--red)", marginBottom: 12 }}>{scanError}</p>}
 
             {timetablePreview && timetablePreview.length > 0 && (
               <div className="card" style={{ background: "var(--surface-alt)", marginBottom: 16 }}>

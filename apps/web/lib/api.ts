@@ -198,7 +198,7 @@ export async function fetchMySubjects(token: string): Promise<Subject[]> {
   return res.json();
 }
 
-export async function createSubject(token: string, payload: { name: string; color: string; icon?: string }) {
+export async function createSubject(token: string, payload: { name: string; color?: string; icon?: string }) {
   const res = await fetch(`${API_BASE}/classes/me/subjects`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },

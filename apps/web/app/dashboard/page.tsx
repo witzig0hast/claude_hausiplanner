@@ -359,16 +359,11 @@ function DashboardInner() {
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
           <div className="row" style={{ gap: 8, alignItems: "center" }}>
             <span className="subject-tag" style={{ marginBottom: 0 }}>
-              <span className="subject-dot" style={{ background: hw.subject.color }} />
               {hw.subject.name}
             </span>
             {dueBadge(hw)}
-            {prioritiesEnabled && hw.priority === "hoch" && (
-              <span className="pill" style={{ background: "#d9707022", color: "#d97070" }}>Hoch</span>
-            )}
-            {prioritiesEnabled && hw.priority === "niedrig" && (
-              <span className="pill" style={{ background: "var(--surface)", color: "var(--muted)" }}>Niedrig</span>
-            )}
+            {prioritiesEnabled && hw.priority === "hoch" && <span className="pill red">Hoch</span>}
+            {prioritiesEnabled && hw.priority === "niedrig" && <span className="pill neutral">Niedrig</span>}
           </div>
           {isAdmin && (
                   <div className="row" style={{ gap: 4 }}>
@@ -618,7 +613,7 @@ function DashboardInner() {
         </form>
       )}
 
-      {error && <p style={{ color: "#f19999" }}>{error}</p>}
+      {error && <p style={{ color: "var(--red)" }}>{error}</p>}
 
       {items.length > 0 && (
         <div className="row wrap" style={{ marginBottom: 8 }}>

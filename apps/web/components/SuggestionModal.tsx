@@ -106,7 +106,7 @@ export function SuggestionModal({
             </div>
           </div>
 
-          {error && <p style={{ color: "#f19999", marginBottom: 10 }}>{error}</p>}
+          {error && <p style={{ color: "var(--red)", marginBottom: 10 }}>{error}</p>}
 
           <div className="row" style={{ marginTop: 8 }}>
             <button type="button" className="ghost" onClick={handleDismiss} disabled={busy} style={{ flex: 1 }}>

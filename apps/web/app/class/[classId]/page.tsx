@@ -41,10 +41,7 @@ export default async function PublicClassPage({ params }: { params: { classId: s
       <div className="stack">
         {items.map((hw) => (
           <div key={hw.id} className="card interactive">
-            <span className="subject-tag">
-              <span className="subject-dot" style={{ background: hw.subject.color }} />
-              {hw.subject.name}
-            </span>
+            <span className="subject-tag">{hw.subject.name}</span>
             <h3>{hw.title}</h3>
             {hw.description && <p className="muted" style={{ marginTop: 6 }}>{hw.description}</p>}
             <p className="due">

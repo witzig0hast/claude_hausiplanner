@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
   const [accent, setAccent] = useState<Accent>("green");
   const [testEmailStatus, setTestEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [testEmailError, setTestEmailError] = useState<string | null>(null);
@@ -240,9 +240,9 @@ export default function SettingsPage() {
           {ssoMessage && (
             <p
               style={{
-                color: ssoMessage.type === "error" ? "#f19999" : "var(--accent-bright)",
+                color: ssoMessage.type === "error" ? "var(--red)" : "var(--accent-bright)",
                 background: ssoMessage.type === "error" ? "var(--red-bg)" : undefined,
-                border: ssoMessage.type === "error" ? "1px solid #4d2323" : undefined,
+                border: ssoMessage.type === "error" ? "1px solid var(--red)" : undefined,
                 padding: ssoMessage.type === "error" ? "10px 14px" : undefined,
                 borderRadius: 6,
                 fontSize: 13.5,
@@ -317,7 +317,7 @@ export default function SettingsPage() {
             {testEmailStatus === "sending" ? "Wird gesendet..." : "Test-E-Mail senden"}
           </button>
           {testEmailStatus === "sent" && <span style={{ color: "var(--accent-bright)" }}>Gesendet - schau in dein Postfach</span>}
-          {testEmailStatus === "error" && <span style={{ color: "#d97070" }}>{testEmailError}</span>}
+          {testEmailStatus === "error" && <span style={{ color: "var(--red)" }}>{testEmailError}</span>}
         </div>
       </div>
 
@@ -475,7 +475,7 @@ export default function SettingsPage() {
                           <span className="faint">· {entry.kind === "text" ? "Text" : `Task: ${entry.task_type}`}</span>
                         </div>
                         {entry.content && <div className="muted">{entry.content}</div>}
-                        {!!entry.result?.error && <div style={{ color: "#f19999" }}>{String(entry.result.error)}</div>}
+                        {!!entry.result?.error && <div style={{ color: "var(--red)" }}>{String(entry.result.error)}</div>}
                       </div>
                       <span className={`pill ${entry.status === "failed" ? "red" : entry.status === "completed" ? "green" : ""}`}>
                         {entry.status}
@@ -502,7 +502,7 @@ export default function SettingsPage() {
               value={busBaseUrl}
               onChange={(e) => setBusBaseUrl(e.target.value)}
             />
-            {busError && <p style={{ color: "#f19999", marginBottom: 12 }}>{busError}</p>}
+            {busError && <p style={{ color: "var(--red)", marginBottom: 12 }}>{busError}</p>}
             <button type="submit" disabled={busBusy}>{busBusy ? "Verbinde..." : "Verbinden"}</button>
           </form>
         )}
